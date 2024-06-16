@@ -10,9 +10,12 @@ const PatientListPopup = ({ open, onClose, patients }) => {
     setSearchTerm(event.target.value);
   };
 
-  const filteredPatients = patients.filter((patient) =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPatients = patients.filter((patient) => {
+    if (patient.name && searchTerm) {
+      return patient.name.toLowerCase().includes(searchTerm.toLowerCase());
+    }
+    return false;
+  });
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">

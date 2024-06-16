@@ -1,15 +1,30 @@
-import React, { useState } from 'react';
-import { Box, Paper, Button, TextField, Grid, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Paper, Button, TextField, Grid, MenuItem, Select, InputLabel, FormControl, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import ExpandableForm from './ExpandableForm'; // Import the ExpandableForm component
 import PatientListPopup from './PatientListPopup'; // Import the PatientListPopup component
+import { supabase } from '../supabaseClient';
 
 const Patient = () => {
-  // Sample patients array (can be fetched or managed elsewhere in a real application)
-  const patients = [
-    { id: 1, name: 'John Doe' },
-    { id: 2, name: 'Jane Smith' },
-    // Add more patients as needed
-  ];
+  const [patients, setPatients] = useState([]);
+
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        let { data: patientsData, error } = await supabase
+          .from('patient')
+          .select('*');
+        if (error) {
+          throw error;
+        }
+
+        setPatients(patientsData);
+      } catch (error) {
+        console.error('Error fetching patients:', error.message);
+      }
+    };
+
+    fetchPatients();
+  }, []);
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -24,14 +39,60 @@ const Patient = () => {
     kin_relationship: '',
     kin_address: '',
     kin_phone: '',
-    appointment_number: '',
     patient_id: '', // For selecting existing patient
     examination_room: '',
     exam_result: '',
     appointment_type: '', // In-Patient or Out-Patient
     date_of_appointment: '',
     time_of_appointment: '',
+    referral_doctor: '', // New field for local doctor referral
+    clinic_number: '', // For adding local doctors
+    doctor_name: '',
+    doctor_address: '',
+    doctor_telephone: ''
   });
+
+  const [isPopupOpen, setPopupOpen] = useState(false);
+  const [isAddDoctorOpen, setAddDoctorOpen] = useState(false);
+  const [clinics, setClinics] = useState([]);
+  const [localDoctors, setLocalDoctors] = useState([]);
+
+  useEffect(() => {
+    fetchClinics();
+  }, []);
+
+  const fetchClinics = async () => {
+    try {
+      let { data: clinicsData, error } = await supabase
+        .from('uk_clinics')
+        .select('clinic_number, clinic_name');
+      if (error) {
+        throw error;
+      }
+
+      setClinics(clinicsData);
+    } catch (error) {
+      console.error('Error fetching clinics:', error.message);
+    }
+  };
+
+  useEffect(() => {
+    const fetchLocalDoctors = async () => {
+      try {
+        let { data: localDoctorsData, error } = await supabase
+          .from('localdoctor')
+          .select('*');
+        if (error) {
+          throw error;
+        }
+
+        setLocalDoctors(localDoctorsData);
+      } catch (error) {
+        console.error('Error fetching local doctors:', error.message);
+      }
+    };
+    fetchLocalDoctors();
+  }, []); // Empty dependency array to run effect only once on mount
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -43,6 +104,10 @@ const Patient = () => {
     // Handle form submission logic here
     console.log('Form data:', formData);
     // Clear form fields after submission if needed
+    clearFormFields();
+  };
+
+  const clearFormFields = () => {
     setFormData({
       first_name: '',
       last_name: '',
@@ -56,17 +121,72 @@ const Patient = () => {
       kin_relationship: '',
       kin_address: '',
       kin_phone: '',
-      appointment_number: '',
       patient_id: '',
       examination_room: '',
       exam_result: '',
       appointment_type: '',
       date_of_appointment: '',
       time_of_appointment: '',
+      referral_doctor: '',
+      clinic_number: '',
+      doctor_name: '',
+      doctor_address: '',
+      doctor_telephone: ''
     });
   };
 
-  const [isPopupOpen, setPopupOpen] = useState(false);
+  const handleAddDoctor = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('localdoctor')
+        .insert([
+          {
+            doctor_name: formData.doctor_name,
+            address: formData.doctor_address,
+            telephone: formData.doctor_telephone,
+            clinic_number: formData.clinic_number,
+          },
+        ]);
+      if (error) {
+        throw error;
+      }
+
+      console.log('Doctor added successfully:', data);
+
+      // Close the dialog after successful addition
+      handleCloseAddDoctor();
+      // Clear form fields
+      clearFormFields();
+      // Optionally, update local doctors list
+      fetchLocalDoctors();
+    } catch (error) {
+      console.error('Error adding doctor:', error.message);
+      // Handle error state if necessary
+    }
+  };
+
+  const fetchLocalDoctors = async () => {
+    try {
+      let { data: localDoctorsData, error } = await supabase
+        .from('localdoctor')
+        .select();
+      if (error) {
+        throw error;
+      }
+
+      setLocalDoctors(localDoctorsData);
+    } catch (error) {
+      console.error('Error fetching local doctors:', error.message);
+    }
+  };
+
+  const handleOpenAddDoctor = () => {
+    setAddDoctorOpen(true);
+  };
+
+  const handleCloseAddDoctor = () => {
+    setAddDoctorOpen(false);
+  };
 
   const handleOpenPopup = () => {
     setPopupOpen(true);
@@ -99,7 +219,7 @@ const Patient = () => {
                 <TextField name="last_name" label="Last Name" variant="outlined" fullWidth required size='small' value={formData.last_name} onChange={handleInputChange} />
               </Grid>
               <Grid item xs={4} sm={2}>
-                <TextField name="address" label="Street" variant="outlined" fullWidth required size='small' value={formData.address} onChange={handleInputChange} />
+                <TextField name="address" label="Address" variant="outlined" fullWidth required size='small' value={formData.address} onChange={handleInputChange} />
               </Grid>
               <Grid item xs={4} sm={2}>
                 <TextField
@@ -115,28 +235,10 @@ const Patient = () => {
                 >
                   <MenuItem value="M">Male</MenuItem>
                   <MenuItem value="F">Female</MenuItem>
-                  <MenuItem value="O">Other</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={4} sm={2}>
-                <TextField name="phone" label="Phone" type="tel" variant="outlined" fullWidth required size='small' value={formData.phone} onChange={handleInputChange} />
-              </Grid>
-              <Grid item xs={4} sm={2}>
-                <TextField name="postal_code" label="Postal Code" variant="outlined" fullWidth required size='small' value={formData.postal_code} onChange={handleInputChange} />
-              </Grid>
-              <Grid item xs={4} sm={2}>
-                <TextField
-                  name="date_of_birth"
-                  label="Date of Birth"
-                  type="date"
-                  variant="outlined"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  required
-                  size='small'
-                  value={formData.date_of_birth}
-                  onChange={handleInputChange}
-                />
+                <TextField name="telephone" label="Telephone" type="tel" variant="outlined" fullWidth required size='small' value={formData.phone} onChange={handleInputChange} />
               </Grid>
               <Grid item xs={4} sm={2}>
                 <FormControl fullWidth variant="outlined" size='small'>
@@ -155,6 +257,52 @@ const Patient = () => {
                   </Select>
                 </FormControl>
               </Grid>
+              <Grid item xs={4} sm={2}>
+                <TextField
+                  name="date_of_birth"
+                  label="Date of Birth"
+                  type="date"
+                  variant="outlined"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  required
+                  size='small'
+                  value={formData.date_of_birth}
+                  onChange={handleInputChange}
+                />
+              </Grid>
+              <Grid item xs={4} sm={2}>
+                <TextField
+                  name="date_registered"
+                  label="Date Registered"
+                  type="date"
+                  variant="outlined"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  required
+                  size='small'
+                  value={formData.date_of_birth}
+                  onChange={handleInputChange}
+                />
+              </Grid>
+              <Grid item xs={4} sm={2}>
+                <FormControl fullWidth variant="outlined" size='small'>
+                  <InputLabel>Local Doctor Referral</InputLabel>
+                  <Select
+                    name="referral_doctor"
+                    label="Local Doctor Referral"
+                    required
+                    value={formData.referral_doctor}
+                    onChange={handleInputChange}
+                  >
+                    {localDoctors.map((doctor) => (
+                      <MenuItem key={doctor.doctor_id} value={doctor.doctor_id}>
+                        {doctor.doctor_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
             </Grid>
             <Box sx={{ mt: 1, textAlign: 'center' }}>
               <Button type="submit" variant="contained" color="secondary" size='small' style={{ background: '#007bff' }} onClick={handleSubmit}>
@@ -162,7 +310,6 @@ const Patient = () => {
               </Button>
             </Box>
           </ExpandableForm>
-
           <ExpandableForm title="Next of Kin Details">
             <Grid container spacing={2}>
               <Grid item xs={6} sm={3}>
@@ -177,12 +324,13 @@ const Patient = () => {
                     onChange={handleInputChange}
                   >
                     {patients.map((patient) => (
-                      <MenuItem key={patient.id} value={patient.id}>
-                        {patient.name}
+                      <MenuItem key={patient.patient_number} value={patient.patient_number}>
+                        {`${patient.first_name} ${patient.last_name}`}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
+
               </Grid>
               <Grid item xs={6} sm={3}>
                 <TextField name="kin_name" label="Full Name" variant="outlined" fullWidth required size='small' value={formData.kin_name} onChange={handleInputChange} />
@@ -197,27 +345,14 @@ const Patient = () => {
                 <TextField name="kin_phone" label="Phone" type="tel" variant="outlined" fullWidth required size='small' value={formData.kin_phone} onChange={handleInputChange} />
               </Grid>
             </Grid>
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Box sx={{ mt: 1, textAlign: 'center' }}>
               <Button type="submit" variant="contained" color="secondary" size='small' style={{ background: '#007bff' }} onClick={handleSubmit}>
                 Submit
               </Button>
             </Box>
           </ExpandableForm>
-
-          <ExpandableForm title="Appointment">
+          <ExpandableForm title="Appointment Details">
             <Grid container spacing={2}>
-              <Grid item xs={6} sm={3}>
-                <TextField
-                  name="appointment_number"
-                  label="Appointment Number"
-                  variant="outlined"
-                  fullWidth
-                  required
-                  size='small'
-                  value={formData.appointment_number}
-                  onChange={handleInputChange}
-                />
-              </Grid>
               <Grid item xs={6} sm={3}>
                 <FormControl fullWidth variant="outlined" size='small'>
                   <InputLabel>Select Patient</InputLabel>
@@ -229,101 +364,156 @@ const Patient = () => {
                     onChange={handleInputChange}
                   >
                     {patients.map((patient) => (
-                      <MenuItem key={patient.id} value={patient.id}>
-                        {patient.name}
+                      <MenuItem key={patient.patient_number} value={patient.patient_number}>
+                        {`${patient.first_name} ${patient.last_name}`}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
+
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField name="examination_room" label="Examination Room" variant="outlined" fullWidth required size='small' value={formData.examination_room} onChange={handleInputChange} />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField name="exam_result" label="Exam Result" variant="outlined" fullWidth required size='small' value={formData.exam_result} onChange={handleInputChange} />
               </Grid>
               <Grid item xs={6} sm={3}>
                 <TextField
-                  name="examination_room"
-                  label="Examination Room"
+                  name="appointment_type"
+                  label="Appointment Type"
                   variant="outlined"
                   fullWidth
+                  select
                   required
                   size='small'
-                  value={formData.examination_room}
+                  value={formData.appointment_type}
+                  onChange={handleInputChange}
+                >
+                  <MenuItem value="in_patient">In-Patient</MenuItem>
+                  <MenuItem value="out_patient">Out-Patient</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField
+                  name="date_of_appointment"
+                  label="Date of Appointment"
+                  type="date"
+                  variant="outlined"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  required
+                  size='small'
+                  value={formData.date_of_appointment}
                   onChange={handleInputChange}
                 />
               </Grid>
               <Grid item xs={6} sm={3}>
                 <TextField
-                  name="exam_result"
-                  label="Exam Result"
+                  name="time_of_appointment"
+                  label="Time of Appointment"
+                  type="time"
                   variant="outlined"
                   fullWidth
+                  InputLabelProps={{ shrink: true }}
                   required
                   size='small'
-                  value={formData.exam_result}
+                  value={formData.time_of_appointment}
                   onChange={handleInputChange}
-               
-                  />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <FormControl fullWidth variant="outlined" size='small'>
-                      <InputLabel>Appointment Type</InputLabel>
-                      <Select
-                        name="appointment_type"
-                        label="Appointment Type"
-                        required
-                        value={formData.appointment_type}
-                        onChange={handleInputChange}
-                      >
-                        <MenuItem value="In-Patient">In-Patient</MenuItem>
-                        <MenuItem value="Out-Patient">Out-Patient</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <TextField
-                      name="date_of_appointment"
-                      label="Date of Appointment"
-                      type="date"
-                      variant="outlined"
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      required
-                      size='small'
-                      value={formData.date_of_appointment}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <TextField
-                      name="time_of_appointment"
-                      label="Time of Appointment"
-                      type="time"
-                      variant="outlined"
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      required
-                      size='small'
-                      value={formData.time_of_appointment}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                </Grid>
-                <Box sx={{ mt: 2, textAlign: 'center' }}>
-                  <Button type="submit" variant="contained" color="secondary" size='small' style={{ background: '#007bff' }} onClick={handleSubmit}>
-                    Submit
-                  </Button>
-                </Box>
-              </ExpandableForm>
-    
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Button variant="contained" color="primary" onClick={handleOpenPopup}>
-                  View Patients List
-                </Button>
-              </Box>
-    
-              <PatientListPopup open={isPopupOpen} onClose={handleClosePopup} patients={patients} />
+                />
+              </Grid>
+            </Grid>
+            <Box sx={{ mt: 1, textAlign: 'center' }}>
+              <Button type="submit" variant="contained" color="secondary" size='small' style={{ background: '#007bff' }} onClick={handleSubmit}>
+                Submit
+              </Button>
             </Box>
-          </div>
-        </div>
-      );
-    };
-    
-    export default Patient;
-    
+          </ExpandableForm>
+
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Button variant="text" color="primary" onClick={handleOpenAddDoctor} size='small' sx={{ textDecoration: 'underline' }}>
+              Add local doctor here--
+            </Button>
+          </Box>
+
+          {/* Popup for adding local doctor */}
+          <Dialog open={isAddDoctorOpen} onClose={handleCloseAddDoctor}>
+            <DialogTitle>Add Local Doctor</DialogTitle>
+            <DialogContent>
+              <FormControl fullWidth variant="outlined" size='small'>
+                <InputLabel>Clinic Number</InputLabel>
+                <Select
+                  name="clinic_number"
+                  label="Clinic Number"
+                  required
+                  value={formData.clinic_number}
+                  onChange={handleInputChange}
+                >
+                  {clinics.map((clinic) => (
+                    <MenuItem key={clinic.clinic_number} value={clinic.clinic_number}>
+                      {`${clinic.clinic_number} - ${clinic.clinic_name}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {/* Other form fields for local doctor */}
+              <TextField
+                name="doctor_name"
+                label="Doctor Name"
+                variant="outlined"
+                fullWidth
+                required
+                size='small'
+                value={formData.doctor_name}
+                onChange={handleInputChange}
+                style={{ marginTop: '16px' }}
+              />
+              <TextField
+                name="doctor_address"
+                label="Doctor Address"
+                variant="outlined"
+                fullWidth
+                required
+                size='small'
+                value={formData.doctor_address}
+                onChange={handleInputChange}
+                style={{ marginTop: '16px' }}
+              />
+              <TextField
+                name="doctor_telephone"
+                label="Doctor Telephone"
+                variant="outlined"
+                fullWidth
+                required
+                size='small'
+                value={formData.doctor_telephone}
+                onChange={handleInputChange}
+                style={{ marginTop: '16px' }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseAddDoctor} color="primary" size='small'>
+                Cancel
+              </Button>
+              <Button onClick={handleAddDoctor} color="primary" size='small'>
+                Add Doctor
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* View Patients List Popup */}
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Button variant="contained" color="primary" onClick={handleOpenPopup} size='small'>
+              View Patients List
+            </Button>
+          </Box>
+
+          {/* Popup for viewing patient list */}
+          <PatientListPopup open={isPopupOpen} onClose={handleClosePopup} patients={patients} />
+        </Box>
+      </div>
+    </div>
+  );
+};
+
+export default Patient;
