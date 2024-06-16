@@ -9,6 +9,7 @@ import Wards from './dashboardcomponents/Wards';
 import Supply from './dashboardcomponents/Supply';
 import Prescription from './dashboardcomponents/Prescription';
 import Other from './dashboardcomponents/Other';
+import WelcomePage from './dashboardcomponents/WelcomePage'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/" element={<NewLogin />} />
         <Route path="/login" element={<NewLogin />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/dashboard" element={<Dashboard />}>
           <Route path="patient" element={<Patient />} />
           <Route path="staff" element={<Staff />} />

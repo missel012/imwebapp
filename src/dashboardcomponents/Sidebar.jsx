@@ -15,8 +15,8 @@ const Sidebar = () => {
       <h2 style={{color:'#007bff'}}>Wellmeadows Hospital</h2>
       <ul>
         <li style={{fontSize:'5mm'}}>
-          <Link to="/dashboard">
-            <HomeIcon style={{ fontSize: 20, marginRight: 10}} />
+          <Link to="/welcome">
+            <HomeIcon style={{ fontSize: 20, marginRight: 5}} />
             Dashboard
           </Link>
         </li>
