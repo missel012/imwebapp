@@ -211,14 +211,14 @@ const NewLogIn = () => {
             {isLoading ? 'Logging in...' : 'Login'}
           </Button>
           {error && <p className={classes.errorMessage}>{error}</p>}
+          <p>
+            Not registered yet?{' '}
+            <Link to="/register" className={classes.link}>
+              Sign up here.
+            </Link>
+          </p>
         </form>
       </div>
-      <p>
-        Not registered yet?{' '}
-        <Link to="/register" className={classes.link}>
-          Sign up here.
-        </Link>
-      </p>
     </div>
   );
 };
