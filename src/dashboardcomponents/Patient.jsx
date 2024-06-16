@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
 import { supabase } from '../supabaseClient';
 import PatientListPopup from './PatientListPopup';
 import ExpandableForm from './ExpandableForm';
+import { Snackbar } from '@mui/material';
 
 const Patient = () => {
   const [clinics, setClinics] = useState([]);
   const [localDoctors, setLocalDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
-  const [examRooms, setExamRooms] = useState([]); // State to hold exam rooms
+  const [examRooms, setExamRooms] = useState([]);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -23,7 +24,7 @@ const Patient = () => {
     kin_relationship: '',
     kin_address: '',
     kin_telephone: '',
-    examination_room: '', // Changed to select from examRooms
+    examination_room: '',
     exam_result: '',
     appointment_type: '',
     date_of_appointment: '',
@@ -31,44 +32,79 @@ const Patient = () => {
   });
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isAddDoctorOpen, setIsAddDoctorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
     fetchClinics();
     fetchLocalDoctors();
     fetchPatients();
-    fetchExamRooms(); // Fetch exam rooms when component mounts
+    fetchExamRooms();
   }, []);
 
   const fetchClinics = async () => {
     const { data, error } = await supabase.from('uk_clinics').select('*');
-    if (error) console.error('Error fetching clinics:', error);
+    if (error) setError('Error fetching clinics: ' + error.message);
     else setClinics(data);
   };
-
+  
   const fetchLocalDoctors = async () => {
     const { data, error } = await supabase.from('localdoctor').select('*');
-    if (error) console.error('Error fetching local doctors:', error);
+    if (error) setError('Error fetching local doctors: ' + error.message);
     else setLocalDoctors(data);
   };
-
+  
   const fetchPatients = async () => {
     const { data, error } = await supabase.from('patient').select('*');
-    if (error) console.error('Error fetching patients:', error);
+    if (error) setError('Error fetching patients: ' + error.message);
     else setPatients(data);
   };
-
+  
   const fetchExamRooms = async () => {
     const { data, error } = await supabase.from('exam_room').select('*');
-    if (error) console.error('Error fetching exam rooms:', error);
+    if (error) setError('Error fetching exam rooms: ' + error.message);
     else setExamRooms(data);
   };
-
+  
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setFormData({ ...formData, [name]: value });
   };
 
+  const validateForm = () => {
+    const {
+      first_name,
+      last_name,
+      address,
+      telephone_number,
+      sex,
+      date_of_birth,
+      marital_status,
+      date_registered,
+      doctor_id,
+    } = formData;
+
+    if (
+      !first_name ||
+      !last_name ||
+      !address ||
+      !telephone_number ||
+      !sex ||
+      !date_of_birth ||
+      !marital_status ||
+      !date_registered ||
+      !doctor_id
+    ) {
+      setErrorMessage('Please fill in all required fields.');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+
     const { error } = await supabase.from('patient').insert([
       {
         first_name: formData.first_name,
@@ -82,9 +118,13 @@ const Patient = () => {
         doctor_id: formData.doctor_id,
       },
     ]);
-    if (error) console.error('Error inserting patient:', error);
-    else {
-      console.log('Patient added successfully');
+    if (error) {
+      setErrorMessage('Failed to add patient. Please try again later.');
+      console.error('Error inserting patient:', error.message);
+      setSuccessMessage('');
+    } else {
+      setSuccessMessage('Patient added successfully');
+      setErrorMessage('');
       // Clear form after submission
       setFormData({
         first_name: '',
@@ -134,9 +174,13 @@ const Patient = () => {
         clinic_number: formData.clinic_number,
       },
     ]);
-    if (error) console.error('Error adding doctor:', error);
-    else {
-      console.log('Doctor added successfully');
+    if (error) {
+      setErrorMessage('Failed to add doctor. Please try again later.');
+      console.error('Error inserting doctor:', error.message);
+      setSuccessMessage('');
+    } else {
+      setSuccessMessage('Doctor added successfully');
+      setErrorMessage('');
       setIsAddDoctorOpen(false);
     }
   };
@@ -151,9 +195,13 @@ const Patient = () => {
         telephone: formData.kin_telephone,
       },
     ]);
-    if (error) console.error('Error adding next of kin:', error);
-    else {
-      console.log('Next of kin added successfully');
+    if (error) {
+      setErrorMessage('Failed to add doctor. Please try again later.');
+      console.error('Error inserting doctor:', error.message);
+      setSuccessMessage('');
+    } else {
+      setSuccessMessage('Next of kin added successfully');
+      setErrorMessage('');
       // Clear next of kin form fields after submission if needed
       setFormData({
         ...formData,
@@ -176,9 +224,13 @@ const Patient = () => {
         time_of_appointment: formData.time_of_appointment,
       },
     ]);
-    if (error) console.error('Error adding appointment:', error);
-    else {
-      console.log('Appointment added successfully');
+    if (error) {
+      setErrorMessage('Failed to add appointment. Please try again later.');
+      console.error('Error inserting appointment:', error.message);
+      setSuccessMessage('');
+    } else {
+      setSuccessMessage('Appointment added successfully');
+      setErrorMessage('');
       // Clear appointment form fields after submission
       setFormData({
         ...formData,
@@ -194,19 +246,66 @@ const Patient = () => {
   return (
     <div>
       <Box sx={{ p: 3 }}>
+        {errorMessage && (
+          <Box sx={{ bgcolor: 'error.main', color: 'white', p: 2, borderRadius: 1, mb: 2 }}>
+            {errorMessage}
+          </Box>
+        )}
+        {successMessage && (
+          <Box sx={{ bgcolor: 'success.main', color: 'white', p: 2, borderRadius: 1, mb: 2 }}>
+            {successMessage}
+          </Box>
+        )}
+
         <ExpandableForm title="Patient Information">
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
-              <TextField name="first_name" label="First Name" variant="outlined" fullWidth required size='small' value={formData.first_name} onChange={handleInputChange} />
+              <TextField
+                name="first_name"
+                label="First Name"
+                variant="outlined"
+                fullWidth
+                required
+                size="small"
+                value={formData.first_name}
+                onChange={handleInputChange}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField name="last_name" label="Last Name" variant="outlined" fullWidth required size='small' value={formData.last_name} onChange={handleInputChange} />
+              <TextField
+                name="last_name"
+                label="Last Name"
+                variant="outlined"
+                fullWidth
+                required
+                size="small"
+                value={formData.last_name}
+                onChange={handleInputChange}
+              />
             </Grid>
             <Grid item xs={12}>
-              <TextField name="address" label="Address" variant="outlined" fullWidth required size='small' value={formData.address} onChange={handleInputChange} />
+              <TextField
+                name="address"
+                label="Address"
+                variant="outlined"
+                fullWidth
+                required
+                size="small"
+                value={formData.address}
+                onChange={handleInputChange}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField name="telephone_number" label="Telephone Number" variant="outlined" fullWidth size='small' value={formData.telephone_number} onChange={handleInputChange} />
+              <TextField
+                name="telephone_number"
+                label="Telephone Number"
+                variant="outlined"
+                fullWidth
+                required
+                size="small"
+                value={formData.telephone_number}
+                onChange={handleInputChange}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -216,7 +315,7 @@ const Patient = () => {
                 fullWidth
                 select
                 required
-                size='small'
+                size="small"
                 value={formData.sex}
                 onChange={handleInputChange}
               >
@@ -232,13 +331,22 @@ const Patient = () => {
                 variant="outlined"
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-                size='small'
+                size="small"
                 value={formData.date_of_birth}
                 onChange={handleInputChange}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField name="marital_status" label="Marital Status" variant="outlined" fullWidth size='small' value={formData.marital_status} onChange={handleInputChange} />
+              <TextField
+                name="marital_status"
+                label="Marital Status"
+                variant="outlined"
+                fullWidth
+                required
+                size="small"
+                value={formData.marital_status}
+                onChange={handleInputChange}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -248,14 +356,14 @@ const Patient = () => {
                 variant="outlined"
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-                size='small'
+                size="small"
                 value={formData.date_registered}
                 onChange={handleInputChange}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth variant="outlined" size='small'>
-                <InputLabel>Doctor</InputLabel>
+              <FormControl fullWidth variant="outlined" size="small">
+                <InputLabel>Local Doctor Referral</InputLabel>
                 <Select
                   name="doctor_id"
                   label="Doctor"
@@ -273,7 +381,12 @@ const Patient = () => {
             </Grid>
           </Grid>
           <Box sx={{ mt: 1, textAlign: 'center' }}>
-            <Button onClick={handleSubmit} variant="contained" color="primary" size='small'>
+            <Button
+              onClick={handleSubmit}
+              variant="contained"
+              color="primary"
+              size="small"
+            >
               Add Patient
             </Button>
           </Box>
@@ -283,7 +396,7 @@ const Patient = () => {
         <ExpandableForm title="Next of Kin Information">
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth variant="outlined" size='small'>
+              <FormControl fullWidth variant="outlined" size="small">
                 <InputLabel>Select Patient</InputLabel>
                 <Select
                   name="patient_number"
@@ -293,7 +406,10 @@ const Patient = () => {
                   onChange={handleInputChange}
                 >
                   {patients.map((patient) => (
-                    <MenuItem key={patient.patient_number} value={patient.patient_number}>
+                    <MenuItem
+                      key={patient.patient_number}
+                      value={patient.patient_number}
+                    >
                       {`${patient.first_name} ${patient.last_name}`}
                     </MenuItem>
                   ))}
@@ -307,7 +423,7 @@ const Patient = () => {
                 variant="outlined"
                 fullWidth
                 required
-                size='small'
+                size="small"
                 value={formData.kin_full_name}
                 onChange={handleInputChange}
               />
@@ -319,7 +435,7 @@ const Patient = () => {
                 variant="outlined"
                 fullWidth
                 required
-                size='small'
+                size="small"
                 value={formData.kin_relationship}
                 onChange={handleInputChange}
               />
@@ -331,7 +447,7 @@ const Patient = () => {
                 variant="outlined"
                 fullWidth
                 required
-                size='small'
+                size="small"
                 value={formData.kin_address}
                 onChange={handleInputChange}
               />
@@ -342,14 +458,19 @@ const Patient = () => {
                 label="Telephone"
                 variant="outlined"
                 fullWidth
-                size='small'
+                size="small"
                 value={formData.kin_telephone}
                 onChange={handleInputChange}
               />
             </Grid>
           </Grid>
           <Box sx={{ mt: 1, textAlign: 'center' }}>
-            <Button onClick={handleAddNextOfKin} variant="contained" color="primary" size='small'>
+            <Button
+              onClick={handleAddNextOfKin}
+              variant="contained"
+              color="primary"
+              size="small"
+            >
               Add Next of Kin
             </Button>
           </Box>
@@ -359,7 +480,7 @@ const Patient = () => {
         <ExpandableForm title="Patient Appointment">
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth variant="outlined" size='small'>
+              <FormControl fullWidth variant="outlined" size="small">
                 <InputLabel>Select Patient</InputLabel>
                 <Select
                   name="patient_id"
@@ -369,7 +490,10 @@ const Patient = () => {
                   onChange={handleInputChange}
                 >
                   {patients.map((patient) => (
-                    <MenuItem key={patient.patient_number} value={patient.patient_number}>
+                    <MenuItem
+                      key={patient.patient_number}
+                      value={patient.patient_number}
+                    >
                       {`${patient.first_name} ${patient.last_name}`}
                     </MenuItem>
                   ))}
@@ -377,7 +501,7 @@ const Patient = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth variant="outlined" size='small'>
+              <FormControl fullWidth variant="outlined" size="small">
                 <InputLabel>Examination Room</InputLabel>
                 <Select
                   name="examination_room"
@@ -402,7 +526,7 @@ const Patient = () => {
                 fullWidth
                 multiline
                 rows={3}
-                size='small'
+                size="small"
                 value={formData.exam_result}
                 onChange={handleInputChange}
               />
@@ -415,7 +539,7 @@ const Patient = () => {
                 fullWidth
                 select
                 required
-                size='small'
+                size="small"
                 value={formData.appointment_type}
                 onChange={handleInputChange}
               >
@@ -431,7 +555,7 @@ const Patient = () => {
                 variant="outlined"
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-                size='small'
+                size="small"
                 value={formData.date_of_appointment}
                 onChange={handleInputChange}
               />
@@ -444,36 +568,57 @@ const Patient = () => {
                 variant="outlined"
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-                size='small'
+                size="small"
                 value={formData.time_of_appointment}
                 onChange={handleInputChange}
               />
             </Grid>
           </Grid>
           <Box sx={{ mt: 1, textAlign: 'center' }}>
-            <Button onClick={handleAddAppointment} variant="contained" color="primary" size='small'>
+            <Button
+              onClick={handleAddAppointment}
+              variant="contained"
+              color="primary"
+              size="small"
+            >
               Add Appointment
             </Button>
           </Box>
         </ExpandableForm>
 
         <Box sx={{ mt: 2, textAlign: 'center' }}>
-          <Button variant="text" color="primary" onClick={handleOpenAddDoctor} size='small' sx={{ textDecoration: 'underline' }}>
+          <Button
+            variant="text"
+            color="primary"
+            onClick={handleOpenAddDoctor}
+            size="small"
+            sx={{ textDecoration: 'underline' }}
+          >
             Add local doctor here--
           </Button>
         </Box>
 
         {/* Patient List Popup */}
-        <Button onClick={handleOpenPopup} variant="contained" color="primary" size='small' sx={{ mt: 2 }}>
+        <Button
+          onClick={handleOpenPopup}
+          variant="contained"
+          color="primary"
+          size="small"
+          sx={{ mt: 2 }}
+        >
           View Patient List
         </Button>
-        <PatientListPopup open={isPopupOpen} onClose={handleClosePopup} patients={patients} />
+        <PatientListPopup
+          open={isPopupOpen}
+          onClose={handleClosePopup}
+          patients={patients}
+        />
 
         {/* Add Doctor Dialog */}
         <Dialog open={isAddDoctorOpen} onClose={handleCloseAddDoctor}>
           <DialogTitle>Add Doctor</DialogTitle>
           <DialogContent>
-            <FormControl fullWidth variant="outlined" size='small' sx={{ mt: 2 }}>
+            <FormControl fullWidth variant="outlined" size="small" sx={{ mt: 2 }}>
               <InputLabel>Clinic</InputLabel>
               <Select
                 name="clinic_number"
@@ -483,7 +628,10 @@ const Patient = () => {
                 onChange={handleInputChange}
               >
                 {clinics.map((clinic) => (
-                  <MenuItem key={clinic.clinic_number} value={clinic.clinic_number}>
+                  <MenuItem
+                    key={clinic.clinic_number}
+                    value={clinic.clinic_number}
+                  >
                     {clinic.clinic_name}
                   </MenuItem>
                 ))}
@@ -495,7 +643,7 @@ const Patient = () => {
               variant="outlined"
               fullWidth
               required
-              size='small'
+              size="small"
               value={formData.doctor_name}
               onChange={handleInputChange}
             />
@@ -505,7 +653,7 @@ const Patient = () => {
               variant="outlined"
               fullWidth
               required
-              size='small'
+              size="small"
               value={formData.doctor_address}
               onChange={handleInputChange}
             />
@@ -515,7 +663,7 @@ const Patient = () => {
               variant="outlined"
               fullWidth
               required
-              size='small'
+              size="small"
               value={formData.doctor_telephone}
               onChange={handleInputChange}
             />
@@ -530,8 +678,25 @@ const Patient = () => {
           </DialogActions>
         </Dialog>
       </Box>
+
+      {/* Success and Error Messages */}
+      <Snackbar
+        open={successMessage !== null}
+        autoHideDuration={6000}
+        onClose={() => setSuccessMessage(null)}
+        message={successMessage}
+        severity="success"
+      />
+      <Snackbar
+        open={errorMessage !== null}
+        autoHideDuration={6000}
+        onClose={() => setErrorMessage(null)}
+        message={errorMessage}
+        severity="error"
+      />
     </div>
   );
 };
 
 export default Patient;
+
