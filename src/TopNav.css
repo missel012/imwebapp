@@ -1,0 +1,53 @@
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 300px; /* Adjust left position to match Sidebar width */
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #fff;
+  height: 60px;
+  padding: 0 20px; /* Adjust padding as needed */
+  z-index: 900; /* Ensure it's below the Sidebar */
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.search-bar-container {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar {
+  width: 100%; /* Use full available width */
+  max-width: 400px; /* Limit the width if necessary */
+  padding: 8px; /* Add padding for better spacing */
+  border: none;
+  border-radius: 4px; /* Optional: Add border radius */
+  margin-left: 400px;
+}
+
+.profile-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.profile-avatar {
+  width: 32px; /* Adjust avatar size */
+  height: 32px;
+  border-radius: 50%; /* Optional: Round avatar */
+  margin-right: 8px;
+}
+
+.profile-name {
+  font-size: 16px;
+  color: #333;
+  font-weight: bold; /* Optional: Make name bold */
+}
+
+.profile-name:hover {
+  text-decoration: underline; /* Example: Underline on hover */
+}

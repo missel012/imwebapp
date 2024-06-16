@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import '../dashboardstyle.css';
+import '../sidebar.css'; // Ensure correct path to sidebar.css
 import HomeIcon from '@mui/icons-material/Home';
 import PersonIcon from '@mui/icons-material/Person';
 import PeopleIcon from '@mui/icons-material/People';
@@ -8,60 +8,63 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import OtherHousesIcon from '@mui/icons-material/OtherHouses';
+import logo from '../../img/logo.png'; // Import your logo image
 
 const Sidebar = () => {
   return (
     <div className="sidebar">
-      <h2 style={{color:'#007bff'}}>Wellmeadows Hospital</h2>
+      <div className="logo">
+        <img src={logo} alt="Wellmeadows Hospital Logo" />
+      </div>
       <ul>
-        <li style={{fontSize:'5mm'}}>
-          <Link to="/welcome">
-            <HomeIcon style={{ fontSize: 20, marginRight: 5}} />
+        <li style={{ fontSize: '5mm' }}>
+          <Link to="/dashboard">
+            <HomeIcon style={{ fontSize: 20, marginRight: 5 }} />
             Dashboard
           </Link>
         </li>
         <li>
           <Link to="/dashboard/patient">
-            <PersonIcon style={{ fontSize: 20, marginRight: 10, marginTop:'5%' }} />
+            <PersonIcon style={{ fontSize: 20, marginRight: 10, marginTop: '5%' }} />
             Patient
           </Link>
         </li>
         <li>
           <Link to="/dashboard/staff">
-            <PeopleIcon style={{ fontSize: 20, marginRight: 10, marginTop:'5%' }} />
+            <PeopleIcon style={{ fontSize: 20, marginRight: 10, marginTop: '5%' }} />
             Staff
           </Link>
         </li>
         <li>
           <Link to="/dashboard/wards">
-            <LocalHospitalIcon style={{ fontSize: 20, marginRight: 10, marginTop:'5%' }} />
+            <LocalHospitalIcon style={{ fontSize: 20, marginRight: 10, marginTop: '5%' }} />
             Wards
           </Link>
         </li>
         <li>
           <Link to="/dashboard/supply">
-            <Inventory2Icon style={{ fontSize: 20, marginRight: 10, marginTop:'5%' }} />
+            <Inventory2Icon style={{ fontSize: 20, marginRight: 10, marginTop: '5%' }} />
             Supply
           </Link>
         </li>
         <li>
           <Link to="/dashboard/prescription">
-            <LocalPharmacyIcon style={{ fontSize: 20, marginRight: 10, marginTop:'5%' }} />
+            <LocalPharmacyIcon style={{ fontSize: 20, marginRight: 10, marginTop: '5%' }} />
             Prescription
           </Link>
         </li>
         <li>
           <Link to="/dashboard/other">
-            <OtherHousesIcon style={{ fontSize: 20, marginRight: 10, marginTop:'5%' }} />
+            <OtherHousesIcon style={{ fontSize: 20, marginRight: 10, marginTop: '5%' }} />
             Other
           </Link>
         </li>
       </ul>
-      <div>
+      <div className="logout-container">
         <Link to='/'>
-          <button className="logout" style={{marginTop:'240px'}}>Log Out</button>
+          <button className="logout">Log Out</button>
         </Link>
-      </div> 
+      </div>
     </div>
   );
 };

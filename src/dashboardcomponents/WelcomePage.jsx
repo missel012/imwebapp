@@ -23,7 +23,7 @@ function WelcomePage() {
                     Your health and comfort are our top priorities, and we strive to make your experience with us as stress-free and positive as possible. From our state-of-the-art facilities to our caring staff, we are here to support you on your journey to wellness.
                 </Typography>
                 <Typography paragraph>
-                    Welcome to Wellmeadows Hospital, where your health is in good hands.
+                    <strong>Welcome to Wellmeadows Hospital, where your health is in good hands.</strong>
                 </Typography>
             </Container>
         </Box>
