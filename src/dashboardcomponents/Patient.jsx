@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Select, TextField } from '@mui/material';
 import { supabase } from '../supabaseClient';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
-import ExpandableForm from './ExpandableForm';
 import PatientListPopup from './PatientListPopup';
-import EditIcon from '@mui/icons-material/Edit';
-import CloseIcon from '@mui/icons-material/Close';
+import ExpandableForm from './ExpandableForm';
 
 const Patient = () => {
   const [clinics, setClinics] = useState([]);
   const [localDoctors, setLocalDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [examRooms, setExamRooms] = useState([]); // State to hold exam rooms
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -24,7 +23,7 @@ const Patient = () => {
     kin_relationship: '',
     kin_address: '',
     kin_telephone: '',
-    examination_room: '',
+    examination_room: '', // Changed to select from examRooms
     exam_result: '',
     appointment_type: '',
     date_of_appointment: '',
@@ -37,6 +36,7 @@ const Patient = () => {
     fetchClinics();
     fetchLocalDoctors();
     fetchPatients();
+    fetchExamRooms(); // Fetch exam rooms when component mounts
   }, []);
 
   const fetchClinics = async () => {
@@ -55,6 +55,12 @@ const Patient = () => {
     const { data, error } = await supabase.from('patient').select('*');
     if (error) console.error('Error fetching patients:', error);
     else setPatients(data);
+  };
+
+  const fetchExamRooms = async () => {
+    const { data, error } = await supabase.from('exam_room').select('*');
+    if (error) console.error('Error fetching exam rooms:', error);
+    else setExamRooms(data);
   };
 
   const handleInputChange = (event) => {
@@ -132,6 +138,56 @@ const Patient = () => {
     else {
       console.log('Doctor added successfully');
       setIsAddDoctorOpen(false);
+    }
+  };
+
+  const handleAddNextOfKin = async () => {
+    const { error } = await supabase.from('patient_next_of_kin').insert([
+      {
+        patient_number: formData.patient_number,
+        full_name: formData.kin_full_name,
+        relationship: formData.kin_relationship,
+        address: formData.kin_address,
+        telephone: formData.kin_telephone,
+      },
+    ]);
+    if (error) console.error('Error adding next of kin:', error);
+    else {
+      console.log('Next of kin added successfully');
+      // Clear next of kin form fields after submission if needed
+      setFormData({
+        ...formData,
+        kin_full_name: '',
+        kin_relationship: '',
+        kin_address: '',
+        kin_telephone: '',
+      });
+    }
+  };
+
+  const handleAddAppointment = async () => {
+    const { error } = await supabase.from('patient_appointment').insert([
+      {
+        patient_number: formData.patient_id,
+        room_number: formData.examination_room,
+        exam_result: formData.exam_result,
+        appointment_type: formData.appointment_type,
+        date_of_appointment: formData.date_of_appointment,
+        time_of_appointment: formData.time_of_appointment,
+      },
+    ]);
+    if (error) console.error('Error adding appointment:', error);
+    else {
+      console.log('Appointment added successfully');
+      // Clear appointment form fields after submission
+      setFormData({
+        ...formData,
+        examination_room: '',
+        exam_result: '',
+        appointment_type: '',
+        date_of_appointment: '',
+        time_of_appointment: '',
+      });
     }
   };
 
@@ -226,24 +282,24 @@ const Patient = () => {
         {/* Add Next of Kin */}
         <ExpandableForm title="Next of Kin Information">
           <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-                <FormControl fullWidth variant="outlined" size='small'>
-                  <InputLabel>Select Patient</InputLabel>
-                  <Select
-                    name="patient_id"
-                    label="Select Patient"
-                    required
-                    value={formData.patient_id}
-                    onChange={handleInputChange}
-                  >
-                    {patients.map((patient) => (
-                      <MenuItem key={patient.patient_number} value={patient.patient_number}>
-                        {`${patient.first_name} ${patient.last_name}`}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth variant="outlined" size='small'>
+                <InputLabel>Select Patient</InputLabel>
+                <Select
+                  name="patient_number"
+                  label="Select Patient"
+                  required
+                  value={formData.patient_number}
+                  onChange={handleInputChange}
+                >
+                  {patients.map((patient) => (
+                    <MenuItem key={patient.patient_number} value={patient.patient_number}>
+                      {`${patient.first_name} ${patient.last_name}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 name="kin_full_name"
@@ -253,7 +309,6 @@ const Patient = () => {
                 required
                 size='small'
                 value={formData.kin_full_name}
-               
                 onChange={handleInputChange}
               />
             </Grid>
@@ -294,7 +349,7 @@ const Patient = () => {
             </Grid>
           </Grid>
           <Box sx={{ mt: 1, textAlign: 'center' }}>
-            <Button variant="contained" color="primary" size='small'>
+            <Button onClick={handleAddNextOfKin} variant="contained" color="primary" size='small'>
               Add Next of Kin
             </Button>
           </Box>
@@ -303,34 +358,41 @@ const Patient = () => {
         {/* Add Patient Appointment */}
         <ExpandableForm title="Patient Appointment">
           <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-                <FormControl fullWidth variant="outlined" size='small'>
-                  <InputLabel>Select Patient</InputLabel>
-                  <Select
-                    name="patient_id"
-                    label="Select Patient"
-                    required
-                    value={formData.patient_id}
-                    onChange={handleInputChange}
-                  >
-                    {patients.map((patient) => (
-                      <MenuItem key={patient.patient_number} value={patient.patient_number}>
-                        {`${patient.first_name} ${patient.last_name}`}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                name="examination_room"
-                label="Examination Room"
-                variant="outlined"
-                fullWidth
-                size='small'
-                value={formData.examination_room}
-                onChange={handleInputChange}
-              />
+              <FormControl fullWidth variant="outlined" size='small'>
+                <InputLabel>Select Patient</InputLabel>
+                <Select
+                  name="patient_id"
+                  label="Select Patient"
+                  required
+                  value={formData.patient_id}
+                  onChange={handleInputChange}
+                >
+                  {patients.map((patient) => (
+                    <MenuItem key={patient.patient_number} value={patient.patient_number}>
+                      {`${patient.first_name} ${patient.last_name}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth variant="outlined" size='small'>
+                <InputLabel>Examination Room</InputLabel>
+                <Select
+                  name="examination_room"
+                  label="Examination Room"
+                  required
+                  value={formData.examination_room}
+                  onChange={handleInputChange}
+                >
+                  {examRooms.map((room) => (
+                    <MenuItem key={room.room_number} value={room.room_number}>
+                      {`${room.room_number} - ${room.location}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -389,17 +451,17 @@ const Patient = () => {
             </Grid>
           </Grid>
           <Box sx={{ mt: 1, textAlign: 'center' }}>
-            <Button variant="contained" color="primary" size='small'>
+            <Button onClick={handleAddAppointment} variant="contained" color="primary" size='small'>
               Add Appointment
             </Button>
           </Box>
         </ExpandableForm>
 
         <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Button variant="text" color="primary" onClick={handleOpenAddDoctor} size='small' sx={{ textDecoration: 'underline' }}>
-              Add local doctor here--
-            </Button>
-          </Box>
+          <Button variant="text" color="primary" onClick={handleOpenAddDoctor} size='small' sx={{ textDecoration: 'underline' }}>
+            Add local doctor here--
+          </Button>
+        </Box>
 
         {/* Patient List Popup */}
         <Button onClick={handleOpenPopup} variant="contained" color="primary" size='small' sx={{ mt: 2 }}>
@@ -411,7 +473,7 @@ const Patient = () => {
         <Dialog open={isAddDoctorOpen} onClose={handleCloseAddDoctor}>
           <DialogTitle>Add Doctor</DialogTitle>
           <DialogContent>
-          <FormControl fullWidth variant="outlined" size='small' sx={{ mt: 2 }}>
+            <FormControl fullWidth variant="outlined" size='small' sx={{ mt: 2 }}>
               <InputLabel>Clinic</InputLabel>
               <Select
                 name="clinic_number"
