@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import '../App.css';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import LockPersonOutlinedIcon from '@mui/icons-material/LockPersonOutlined';
@@ -9,8 +8,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { makeStyles } from '@mui/styles';
-import { supabase } from '../supabaseClient'; // Adjust path based on your project structure
 import bcrypt from 'bcryptjs';
+import { useAuth } from '../contexts/AuthContext';
 
 const useStyles = makeStyles({
   loginContainer: {
@@ -34,7 +33,7 @@ const useStyles = makeStyles({
     textAlign: 'center',
   },
   icon: {
-    fontSize: '80px', // Adjust the icon size here as needed
+    fontSize: '80px',
     color: '#0056b3',
     marginBottom: '16px',
   },
@@ -59,9 +58,10 @@ const useStyles = makeStyles({
   },
 });
 
-const NewLogIn = () => {
+const NewLogin = () => {
   const classes = useStyles();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -119,35 +119,11 @@ const NewLogIn = () => {
     setIsLoading(true);
 
     try {
-      // Fetch user credentials from the user table
-      const { data: userData, error: fetchError } = await supabase
-        .from('user')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (fetchError) {
-        console.error('User fetch error:', fetchError.message);
-        setError('Invalid credentials.');
-        setIsLoading(false);
-        return;
-      }
-
-      if (!userData || !(await bcrypt.compare(password, userData.user_password))) {
-        setError('Invalid credentials.');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Login successful:', userData);
-
-      // Navigate to dashboard on successful login
-      // Replace "/dashboard" with your desired route
+      await login(email, password);
       navigate('/dashboard');
-
     } catch (error) {
-      console.error('Login error:', error.message);
-      setError('Invalid credentials.');
+      setError(error.message);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -223,4 +199,4 @@ const NewLogIn = () => {
   );
 };
 
-export default NewLogIn;
+export default NewLogin;
