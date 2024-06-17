@@ -130,7 +130,7 @@ const NewLogin = () => {
 
   return (
     <div className={classes.loginContainer}>
-      <h1>Welcome to Wellmeadows Hospital</h1>
+      <h1>Welcome to Wellmeadows Hospital Mangement System</h1>
       <div className={classes.loginBox}>
         <LockPersonOutlinedIcon className={classes.icon} />
         <form className={classes.form} onSubmit={handleLogin}>

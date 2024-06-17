@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, Paper, DialogTitle, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
 import { supabase } from '../supabaseClient';
 import PatientListPopup from './PatientListPopup';
 import ExpandableForm from './ExpandableForm';
@@ -245,7 +245,16 @@ const Patient = () => {
 
   return (
     <div>
+
       <Box sx={{ p: 3 }}>
+        <Paper elevation={3}>
+          <div className="icon" style={{ display: 'flex' }}>
+            <div style={{ margin: '8px' }}>
+              <img src="../../img/patient.png" alt="Patient" />
+            </div>
+          </div>
+        </Paper>
+
         {errorMessage && (
           <Box sx={{ bgcolor: 'error.main', color: 'white', p: 2, borderRadius: 1, mb: 2 }}>
             {errorMessage}
@@ -594,7 +603,7 @@ const Patient = () => {
             size="small"
             sx={{ textDecoration: 'underline' }}
           >
-            Add local doctor here--
+            Add local doctor here
           </Button>
         </Box>
 
