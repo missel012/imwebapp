@@ -14,25 +14,35 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.search-bar-container {
-  flex-grow: 1;
+.left-icon {
   display: flex;
   align-items: center;
+  margin-right: 300px; /* Adjust spacing as needed */
+}
+
+.wh-icon {
+  width: 30px; /* Adjust size as needed */
+  height: 30px;
+  cursor: pointer; /* Ensure the cursor changes to pointer on hover */
+}
+
+.search-bar-container {
+  flex-grow: 1;
+  margin: 0 16px; 
 }
 
 .search-bar {
   width: 100%; /* Use full available width */
   max-width: 400px; /* Limit the width if necessary */
   padding: 8px; /* Add padding for better spacing */
-  border: none;
-  border-radius: 4px; /* Optional: Add border radius */
-  margin-left: 400px;
+  border: none; /* Remove any border */
+  border-radius: 30px; /* Make edges round with a border radius of 30px */
 }
 
 .profile-container {
   display: flex;
   align-items: center;
-  cursor: pointer;
+  cursor: pointer; /* Ensure cursor changes to pointer on hover */
 }
 
 .profile-avatar {

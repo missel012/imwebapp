@@ -30,6 +30,7 @@ const PatientListPopup = ({ open, onClose }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [appointmentTypes, setAppointmentTypes] = useState({});
 
   useEffect(() => {
     fetchPatients();
@@ -37,37 +38,34 @@ const PatientListPopup = ({ open, onClose }) => {
 
   const fetchPatients = async () => {
     try {
-      // Fetch patients and kin details separately
       const { data: patientsData, error: patientsError } = await supabase.from('patient').select('*');
       const { data: kinData, error: kinError } = await supabase.from('patient_next_of_kin').select('*');
+      const { data: appointmentData, error: appointmentError } = await supabase.from('patient_appointment').select('patient_number, appointment_type');
 
-      if (patientsError || kinError) {
-        console.error('Error fetching patients or kin details:', patientsError || kinError);
+      if (patientsError || kinError || appointmentError) {
+        console.error('Error fetching patients, kin details, or appointment types:', patientsError || kinError || appointmentError);
         return;
       }
 
-      // Combine patient data with kin details
+      const appointmentTypesMap = appointmentData.reduce((acc, appointment) => {
+        acc[appointment.patient_number] = appointment.appointment_type;
+        return acc;
+      }, {});
+
       const mergedPatients = patientsData.map(patient => {
         const kinDetail = kinData.find(kin => kin.patient_number === patient.patient_number);
         return {
-          patient_number: patient.patient_number,
-          first_name: patient.first_name,
-          last_name: patient.last_name,
-          address: patient.address,
-          telephone_number: patient.telephone_number,
-          sex: patient.sex,
-          date_of_birth: patient.date_of_birth,
-          marital_status: patient.marital_status,
-          date_registered: patient.date_registered,
-          kin_details: kinDetail || { full_name: '', relationship: '', address: '', telephone: '' } // Set default if no kin detail found
+          ...patient,
+          kin_details: kinDetail || { full_name: '', relationship: '', address: '', telephone: '' },
+          appointment_type: appointmentTypesMap[patient.patient_number] || ''
         };
       });
 
-      // Set patients and filtered patients state
       setPatients(mergedPatients);
       setFilteredPatients(mergedPatients);
+      setAppointmentTypes(appointmentTypesMap);
     } catch (error) {
-      console.error('Error fetching patients or kin details:', error.message);
+      console.error('Error fetching patients, kin details, or appointment types:', error.message);
     }
   };
 
@@ -78,7 +76,7 @@ const PatientListPopup = ({ open, onClose }) => {
       return (
         patient.first_name.toLowerCase().includes(searchTerm) ||
         patient.last_name.toLowerCase().includes(searchTerm) ||
-        patient.kin_details.full_name.toLowerCase().includes(searchTerm) || // Search in kin details as well
+        patient.kin_details.full_name.toLowerCase().includes(searchTerm) ||
         patient.kin_details.relationship.toLowerCase().includes(searchTerm)
       );
     });
@@ -86,7 +84,6 @@ const PatientListPopup = ({ open, onClose }) => {
   };
 
   const handleEditPatient = (patient) => {
-    // Open edit dialog and set edited patient details
     setEditedPatient({
       patient_number: patient.patient_number,
       first_name: patient.first_name,
@@ -108,9 +105,7 @@ const PatientListPopup = ({ open, onClose }) => {
   };
 
   const handleCloseEditDialog = () => {
-    // Close edit dialog
     setEditDialogOpen(false);
-    // Clear edited patient details
     clearEditedPatient();
   };
 
@@ -136,7 +131,6 @@ const PatientListPopup = ({ open, onClose }) => {
 
   const handleSaveEditedPatient = async () => {
     try {
-      // Update patient details in the Patient table
       const { data: updatedPatientData, error: updatePatientError } = await supabase
         .from('patient')
         .update({
@@ -150,28 +144,25 @@ const PatientListPopup = ({ open, onClose }) => {
           date_registered: editedPatient.date_registered
         })
         .eq('patient_number', editedPatient.patient_number);
-  
+
       if (updatePatientError) {
         throw new Error('Error updating patient details: ' + updatePatientError.message);
       }
-  
-      // Update next of kin details in the Patient_Next_of_Kin table
+
       const { data: existingKinData, error: fetchKinError } = await supabase
         .from('patient_next_of_kin')
         .select('*')
         .eq('patient_number', editedPatient.patient_number);
-  
+
       if (fetchKinError) {
         throw new Error('Error fetching next of kin details: ' + fetchKinError.message);
       }
-  
-      // Find the existing next of kin record if it exists
+
       const existingKinRecord = existingKinData.find(kin => kin.full_name === editedPatient.kin_details.full_name &&
                                                          kin.relationship === editedPatient.kin_details.relationship &&
                                                          kin.address === editedPatient.kin_details.address &&
                                                          kin.telephone === editedPatient.kin_details.telephone);
-  
-      // If an existing record is found, update it; otherwise, insert a new one
+
       if (existingKinRecord) {
         const { data: updatedKinData, error: updateKinError } = await supabase
           .from('patient_next_of_kin')
@@ -184,7 +175,7 @@ const PatientListPopup = ({ open, onClose }) => {
           .eq('patient_number', editedPatient.patient_number)
           .eq('full_name', existingKinRecord.full_name)
           .eq('relationship', existingKinRecord.relationship);
-  
+
         if (updateKinError) {
           throw new Error('Error updating next of kin details: ' + updateKinError.message);
         }
@@ -198,13 +189,12 @@ const PatientListPopup = ({ open, onClose }) => {
             address: editedPatient.kin_details.address,
             telephone: editedPatient.kin_details.telephone
           });
-  
+
         if (insertKinError) {
           throw new Error('Error inserting next of kin details: ' + insertKinError.message);
         }
       }
-  
-      // Update local state with the edited patient
+
       const updatedPatients = patients.map((patient) => {
         if (patient.patient_number === editedPatient.patient_number) {
           return {
@@ -227,17 +217,15 @@ const PatientListPopup = ({ open, onClose }) => {
           return patient;
         }
       });
-  
+
       setPatients(updatedPatients);
-      setFilteredPatients(updatedPatients); // Update filtered patients list as well
-  
-      // Close the edit dialog
+      setFilteredPatients(updatedPatients);
+
       handleCloseEditDialog();
-  
-      // Show success message
+
       setSuccessMessage('Patient details successfully updated.');
       setSuccessSnackbarOpen(true);
-  
+
       console.log('Successfully saved patient details:', editedPatient);
     } catch (error) {
       console.error('Error saving edited patient:', error.message);
@@ -245,9 +233,7 @@ const PatientListPopup = ({ open, onClose }) => {
       setErrorSnackbarOpen(true);
     }
   };
-  
 
-  // Function to calculate age from date of birth
   const calculateAge = (birthdate) => {
     const today = new Date();
     const birthDate = new Date(birthdate);
@@ -280,34 +266,40 @@ const PatientListPopup = ({ open, onClose }) => {
           value={searchTerm}
           onChange={handleSearchChange}
         />
-        {filteredPatients.length === 0 ? (
-          <Typography variant="body2" color="textSecondary" align="center" sx={{ mt: 2 }}>
-            No matches found
-          </Typography>
-        ) : (
-          <List>
-            {filteredPatients.map((patient) => (
-              <ListItem key={patient.patient_number} secondaryAction={
-                <IconButton edge="end" aria-label="edit" onClick={() => handleEditPatient(patient)}>
-                  <EditIcon />
-                </IconButton>
-              }>
-                <ListItemText
-                  primary={`${patient.first_name} ${patient.last_name}`}
-                  secondary={`Patient ID: ${patient.patient_number}`}
-                />
-                <ListItemText
-                  primary={`Age: ${calculateAge(patient.date_of_birth)}`}
-                />
-                <ListItemText
-                  primary={`Next of Kin: ${patient.kin_details.full_name}`}
-                  secondary={`Relationship: ${patient.kin_details.relationship}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-        )}
+        {filteredPatients
+          .length === 0 ? (
+            <Typography variant="body2" color="textSecondary" align="center" sx={{ mt: 2 }}>
+              No matches found
+            </Typography>
+          ) : (
+            <List>
+              {filteredPatients.map((patient) => (
+                <ListItem key={patient.patient_number} secondaryAction={
+                  <IconButton edge="end" aria-label="edit" onClick={() => handleEditPatient(patient)}>
+                    <EditIcon />
+                  </IconButton>
+                }>
+                  <ListItemText
+                    primary={`${patient.first_name} ${patient.last_name}`}
+                    secondary={`Patient ID: ${patient.patient_number}`}
+                  />
+                   <ListItemText
+                    primary={` ${appointmentTypes[patient.patient_number]}`}
+                  />
+                  <ListItemText
+                    primary={`Age: ${calculateAge(patient.date_of_birth)}`}
+                  />
+                  <ListItemText
+                    primary={`Next of Kin: ${patient.kin_details.full_name}`}
+                    secondary={`Relationship: ${patient.kin_details.relationship}`}
+                  />
+                 
+                </ListItem>
+              ))}
+            </List>
+          )}
         </DialogContent>
+  
         {/* Edit Dialog */}
         <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} fullWidth maxWidth="sm">
           <DialogTitle>Edit Patient Details</DialogTitle>
@@ -415,11 +407,13 @@ const PatientListPopup = ({ open, onClose }) => {
           </DialogContent>
         </Dialog>
         {/* End Edit Dialog */}
+  
         <Box sx={{ mt: 2, textAlign: 'center', padding: '16px' }}>
           <Button onClick={onClose} variant="contained" color="secondary">
             Close
           </Button>
         </Box>
+  
         {/* Snackbar for error message */}
         <Snackbar
           open={errorSnackbarOpen}
