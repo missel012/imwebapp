@@ -13,9 +13,10 @@ import {
 import { supabase } from '../supabaseClient';
 import MuiAlert from '@mui/material/Alert';
 
-const AssignBedPopup = ({ open, onClose }) => {
+const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
   const [selectedWard, setSelectedWard] = useState('');
   const [selectedBed, setSelectedBed] = useState('');
+  const [selectedStaff, setSelectedStaff] = useState('');
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,85 +24,144 @@ const AssignBedPopup = ({ open, onClose }) => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
+  const [expectedDuration, setExpectedDuration] = useState('');
+  const [dateOfExpectedLeave, setDateOfExpectedLeave] = useState('');
+
+  const [staffOptions, setStaffOptions] = useState([]);
+
   useEffect(() => {
     fetchWards();
   }, []);
 
   const fetchWards = async () => {
     try {
-      let { data, error } = await supabase.from('ward').select('*');
-      if (error) throw error;
+      let { data: wardsData, error: wardsError } = await supabase.from('ward').select('*');
+      if (wardsError) throw wardsError;
 
-      for (const ward of data) {
-        const { data: bedsData, error: bedsError } = await supabase
-          .from('bed')
-          .select('bed_number')
-          .eq('ward_number', ward.ward_number);
+      // Map each ward to its beds for easy access
+      const wardsWithBeds = wardsData.map((ward) => ({
+        ...ward,
+        beds: [],
+      }));
 
-        if (bedsError) throw bedsError;
-
-        ward.beds = bedsData;
-      }
-
-      setWards(data);
+      setWards(wardsWithBeds);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching wards and beds:', error.message);
-      setError('Error fetching wards and beds. Please try again.');
+      console.error('Error fetching wards:', error.message);
+      setError('Error fetching wards. Please try again.');
     }
   };
 
-  const handleAssignBed = async () => {
+  const fetchBedsByWard = async (wardNumber) => {
     try {
-      if (!selectedWard || !selectedBed) {
-        throw new Error('Please select a ward and a bed number.');
-      }
+      let { data: bedsData, error: bedsError } = await supabase.rpc('get_beds_by_ward', {
+        ward_number_param: wardNumber,
+      });
 
-      const { data: waitingListEntry, error } = await supabase
-        .from('waitinglist')
-        .select('*')
-        .eq('ward_number', selectedWard);
-      if (error) throw error;
+      if (bedsError) throw bedsError;
 
-      const { data: inPatientData, inPatientError } = await supabase
-        .from('inpatient')
-        .insert([
-          {
-            inpatient_id: generateInpatientId(),
-            patient_number: waitingListEntry[0]?.patient_number,
-            appointment_number: waitingListEntry[0]?.appointment_number,
-            bed_number: selectedBed,
-            expected_duration_of_stay: waitingListEntry[0]?.expected_wait_time,
-            date_placed_in_ward: new Date(),
-            date_of_expected_leave: new Date(),
-            date_of_actual_leave: null,
-            list_id: waitingListEntry[0]?.list_id,
-          },
-        ]);
-      if (inPatientError) throw inPatientError;
-
-      await supabase.from('waitinglist').delete().eq('list_id', waitingListEntry[0]?.list_id);
-
-      setSnackbarSeverity('success');
-      setSnackbarMessage(`Assigned bed ${selectedBed} in ward ${selectedWard} to inpatient.`);
-      setSnackbarOpen(true);
-      onClose();
+      return bedsData;
     } catch (error) {
-      console.error('Error assigning bed:', error.message);
-      setSnackbarSeverity('error');
-      setSnackbarMessage(`Error assigning bed: ${error.message}`);
-      setSnackbarOpen(true);
+      console.error('Error fetching beds:', error.message);
+      throw error;
     }
   };
 
-  const handleWardChange = (event) => {
+  const fetchStaffAssignedToWard = async (wardNumber) => {
+    try {
+      let { data: staffData, error: staffError } = await supabase
+        .from('staff_assigned_to_ward')
+        .select('staff_number')
+        .eq('ward_number', wardNumber);
+
+      if (staffError) throw staffError;
+
+      // Extract staff numbers from the response data
+      const staffNumbers = staffData.map((staff) => staff.staff_number);
+
+      // Fetch detailed staff information using the staff numbers
+      let { data: detailedStaffData, error: detailedStaffError } = await supabase
+        .from('staff')
+        .select('*')
+        .in('staff_number', staffNumbers);
+
+      if (detailedStaffError) throw detailedStaffError;
+
+      return detailedStaffData;
+    } catch (error) {
+      console.error('Error fetching staff assigned to ward:', error.message);
+      throw error;
+    }
+  };
+  
+  const handleWardChange = async (event) => {
     const selectedWardNumber = event.target.value;
     setSelectedWard(selectedWardNumber);
     setSelectedBed('');
+    setSelectedStaff('');
+  
+    try {
+      // Fetch beds for the selected ward
+      const bedsData = await fetchBedsByWard(selectedWardNumber);
+  
+      // Update the beds for the selected ward in the state
+      const updatedWards = wards.map((ward) =>
+        ward.ward_number === selectedWardNumber ? { ...ward, beds: bedsData } : ward
+      );
+  
+      setWards(updatedWards);
+  
+      // Select the first bed by default if available
+      if (bedsData.length > 0) {
+        setSelectedBed(bedsData[0].bed_number);
+      } else {
+        console.warn('No beds available for the selected ward.');
+      }
+  
+      // Fetch staff assigned to the selected ward
+      const staffData = await fetchStaffAssignedToWard(selectedWardNumber);
+  
+      // Update staff options in the state
+      setStaffOptions(
+        staffData.map((staff) => ({
+          value: staff.staff_number,
+          label: `${staff.first_name} ${staff.last_name}`,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching beds or staff assigned to ward:', error.message);
+      // Handle fetch error gracefully, e.g., set error state or display a message
+    }
   };
+  
+  const handleAssignBed = async () => {
+    try {
+      // Ensure you have all required fields filled and handle assignment logic
+      await supabase
+        .from('in_patient')
+        .insert([
+          {
+            list_id: listId,
+            ward_number: selectedWard,
+            bed_number: selectedBed,
+            staff_number: selectedStaff,
+            expected_duration_of_stay: expectedDuration,
+            date_placed_in_ward: new Date().toISOString().split('T')[0],
+            date_of_expected_leave: dateOfExpectedLeave,
+          },
+        ]);
 
-  const generateInpatientId = () => {
-    return `INP-${Math.random().toString(36).substr(2, 9)}`;
+      // Remove patient from WaitingList
+    //  await supabase.from('waitinglist').delete().eq('list_id', listId);
+
+      onAssign(); // Callback to parent component
+      onClose(); // Close the dialog
+    } catch (error) {
+      console.error('Error assigning bed or inserting into In_Patient:', error.message);
+      setSnackbarSeverity('error');
+      setSnackbarMessage('Error assigning bed. Please try again.');
+      setSnackbarOpen(true);
+    }
   };
 
   const handleSnackbarClose = (event, reason) => {
@@ -121,10 +181,17 @@ const AssignBedPopup = ({ open, onClose }) => {
       <DialogContent>
         <TextField
           label="Ward Number"
-          value={selectedWard}
+          select
           fullWidth
-          disabled
-        />
+          value={selectedWard}
+          onChange={handleWardChange}
+        >
+          {wards.map((ward) => (
+            <MenuItem key={ward.ward_number} value={ward.ward_number}>
+              {ward.ward_number}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
           label="Bed Number"
           select
@@ -142,13 +209,46 @@ const AssignBedPopup = ({ open, onClose }) => {
                 </MenuItem>
               ))}
         </TextField>
+
+        <TextField
+          label="Select Staff"
+          select
+          fullWidth
+          value={selectedStaff}
+          onChange={(e) => setSelectedStaff(e.target.value)}
+        >
+          {staffOptions.map((staff) => (
+            <MenuItem key={staff.value} value={staff.value}>
+              {staff.label}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <TextField
+          label="Expected Duration of Stay (days)"
+          type="number"
+          fullWidth
+          value={expectedDuration}
+          onChange={(e) => setExpectedDuration(e.target.value)}
+        />
+        <TextField
+          label="Date of Expected Leave"
+          type="date"
+          fullWidth
+          value={dateOfExpectedLeave}
+          onChange={(e) => setDateOfExpectedLeave(e.target.value)}
+          InputLabelProps={{
+            shrink: true,
+          }}
+        />
+
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
         <Button
           onClick={handleAssignBed}
           color="primary"
-          disabled={!selectedWard || !selectedBed}
+          disabled={!selectedWard || !selectedBed || !selectedStaff || !expectedDuration || !dateOfExpectedLeave}
         >
           Assign Bed
         </Button>

@@ -20,7 +20,7 @@ const Dashboard = () => {
           </Link>
           <Link to="staff">
             <div className="icon">
-              <img src="../../img/staff.png" alt="Staff" />
+              <img src="../../img/staff.png" alt="StaffInfo" />
               <p>Staff</p>
             </div>
           </Link>
