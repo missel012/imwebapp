@@ -14,21 +14,11 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.left-icon {
-  display: flex;
-  align-items: center;
-  margin-right: 300px; /* Adjust spacing as needed */
-}
-
-.wh-icon {
-  width: 30px; /* Adjust size as needed */
-  height: 30px;
-  cursor: pointer; /* Ensure the cursor changes to pointer on hover */
-}
-
-.search-bar-container {
-  flex-grow: 1;
-  margin: 0 16px; 
+.hospital-name {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #004d95; /* Change as needed */
+  margin-right: 100px; /* Adjust spacing as needed */
 }
 
 .search-bar {
@@ -55,7 +45,6 @@
 .profile-name {
   font-size: 16px;
   color: #333;
-  font-weight: bold; /* Optional: Make name bold */
 }
 
 .profile-name:hover {

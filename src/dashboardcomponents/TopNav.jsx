@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
-import SearchIcon from '@mui/icons-material/Search';
 import Avatar from '@mui/material/Avatar';
 import ProfileDialog from './ProfileDialog'; // Ensure this path is correct
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import '../TopNav.css'; // Import the CSS file
-import whIcon from '../../img/wh_icon.png'; // Ensure this path is correct
 
 const TopNav = () => {
   const { user } = useAuth();
@@ -54,24 +50,8 @@ const TopNav = () => {
 
   return (
     <div className="top-nav">
-      <div className="left-icon">
-        <img src={whIcon} alt="WH Icon" className="wh-icon" />
-      </div>
-      <div className="search-bar-container">
-        <TextField
-          id="outlined-basic"
-          label="Search"
-          variant="outlined"
-          size="small"
-          className="search-bar"
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
+      <div className="left-text">
+        <span className="hospital-name">Wellmeadows Hospital Management System</span>
       </div>
       <div className="profile-container" onClick={handleClickOpen}>
         <Avatar
