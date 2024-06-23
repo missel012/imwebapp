@@ -1,14 +1,32 @@
-import React from 'react';
-import { Box, Paper, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Paper, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Typography } from '@mui/material';
 import ExpandableForm from './ExpandableForm';
+import { supabase } from '../supabaseClient';
 
 const Other = () => {
-  // Sample data for the table
-  const localDoctorInfo = [
-    { clinicNumber: '001', fullName: 'John Doe', address: '123 Main Street', telephoneNumber: '555-1234' },
-    { clinicNumber: '002', fullName: 'Jane Smith', address: '456 Elm Street', telephoneNumber: '555-5678' },
-    { clinicNumber: '003', fullName: 'Michael Johnson', address: '789 Oak Street', telephoneNumber: '555-9101' },
-  ];
+  const [localDoctorInfo, setLocalDoctorInfo] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchLocalDoctorInfo = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('localdoctor') // Correct table name
+        .select('doctor_id, doctor_name, address, telephone, clinic_number');
+
+      if (error) {
+        console.error('Error fetching data: ', error);
+        setError(error);
+      } else {
+        console.log('Fetched data:', data);
+        setLocalDoctorInfo(data);
+      }
+      setLoading(false);
+    };
+
+    fetchLocalDoctorInfo();
+  }, []);
 
   return (
     <div>
@@ -26,53 +44,38 @@ const Other = () => {
         <ExpandableForm title="Local Doctor Information">
           <Grid container spacing={1}>
             <Grid item xs={12}>
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Clinic Number</TableCell>
-                      <TableCell>Full Name</TableCell>
-                      <TableCell>Address</TableCell>
-                      <TableCell>Telephone Number</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {localDoctorInfo.map((doctor, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{doctor.clinicNumber}</TableCell>
-                        <TableCell>{doctor.fullName}</TableCell>
-                        <TableCell>{doctor.address}</TableCell>
-                        <TableCell>{doctor.telephoneNumber}</TableCell>
+              {loading && <CircularProgress />}
+              {error && <Typography color="error">Failed to load data: {error.message}</Typography>}
+              {!loading && !error && (
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Clinic Number</TableCell>
+                        <TableCell>Full Name</TableCell>
+                        <TableCell>Address</TableCell>
+                        <TableCell>Telephone Number</TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                      {localDoctorInfo.map((doctor) => (
+                        <TableRow key={doctor.doctor_id}>
+                          <TableCell>{doctor.clinic_number}</TableCell>
+                          <TableCell>{doctor.doctor_name}</TableCell>
+                          <TableCell>{doctor.address}</TableCell>
+                          <TableCell>{doctor.telephone}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </Grid>
           </Grid>
         </ExpandableForm>
-        <ExpandableForm title="FAQs">
+        <ExpandableForm title="About Us">
           <Grid container spacing={1}>
-            <Grid item xs={12} sm={6}>
-              <ExpandableForm title="Where is your Hospital Location?">
-                <code>Our hospital is located at 123 Wellness Blvd, Health City.</code>
-              </ExpandableForm>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <ExpandableForm title="Office Time?">
-                <code>We are open 24/7 to serve you.</code>
-              </ExpandableForm>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <ExpandableForm title="Hiring?">
-                <code>Currently, we are not hiring. Please check back later for opportunities.</code>
-              </ExpandableForm>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <ExpandableForm title="Do you consider PhilHealth beneficiaries?">
-                <code>Yes, we accept PhilHealth beneficiaries. Please bring your PhilHealth ID and other necessary documents during your visit.</code>
-              </ExpandableForm>
-            </Grid>
+           <p>Wellmeadows Hospital, situated in the heart of Edinburgh, UK, is a premier healthcare facility renowned for its exceptional patient care and state-of-the-art medical services. Our dedicated team of skilled professionals employs the latest medical technologies and innovative treatments across various specialties, including cardiology, oncology, orthopedics, and pediatrics. Committed to personalized and compassionate care, Wellmeadows Hospital provides a supportive and healing environment for all patients. Conveniently located, we strive to stay at the forefront of medical advancements, ensuring the highest standards of health and well-being for the Edinburgh community.</p>
           </Grid>
         </ExpandableForm>
       </Box>

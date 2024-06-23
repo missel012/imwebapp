@@ -1,11 +1,16 @@
-import { Box, Paper, Button, TextField, Collapse, Typography, Grid, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
 import React, { useState } from 'react';
+import { Box, Paper, Typography, Collapse } from '@mui/material';
 
-const ExpandableForm = ({ title, children }) => {
+const ExpandableForm = ({ title, onSubmit, children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleForm = () => {
     setIsExpanded(!isExpanded);
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault(); // Prevent default form submission behavior
+    onSubmit(event); // Call the provided onSubmit function
   };
 
   return (
@@ -16,7 +21,7 @@ const ExpandableForm = ({ title, children }) => {
         </Typography>
       </Paper>
       <Collapse in={isExpanded}>
-        <Box component="form" sx={{ mt: 2 }}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
           {children}
         </Box>
       </Collapse>

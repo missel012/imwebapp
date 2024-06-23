@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Button, TextField, Grid, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
+import { Box, Paper, Button, Grid, MenuItem, Select, InputLabel, FormControl, TextField, Snackbar, SnackbarContent } from '@mui/material';
 import ExpandableForm from './ExpandableForm';
 import { supabase } from '../supabaseClient';
+import StaffListPopup from './StaffListPopup';
 
 const Staff = () => {
   const [positions, setPositions] = useState([]);
   const [staffMembers, setStaffMembers] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [staffListPopupOpen, setStaffListPopupOpen] = useState(false);
 
   useEffect(() => {
     const fetchPositions = async () => {
@@ -101,14 +108,21 @@ const Staff = () => {
         position: ''
       });
   
-  
       setSuccessMessage('Staff added successfully');
       setErrorMessage('');
+  
+      setSnackbarSeverity('success');
+      setSnackbarMessage('Staff added successfully');
+      setOpenSnackbar(true);
   
     } catch (error) {
       console.error('Error inserting staff info:', error.message);
       setErrorMessage('Failed to add staff. Please try again later.');
       setSuccessMessage('');
+
+      setSnackbarSeverity('error');
+      setSnackbarMessage('Failed to add staff. Please try again later.');
+      setOpenSnackbar(true);
     }
   };
   
@@ -146,8 +160,25 @@ const Staff = () => {
         throw error;
       }
       console.log('Submitted Work Experience:', data);
+
+      // Clear the form fields after successful submission
+      setWorkExperience({
+        selectStaff: '',
+        positionName: '',
+        startDate: '',
+        finishDate: '',
+        organization:''
+      });
+
+      setSnackbarSeverity('success');
+      setSnackbarMessage('Work experience added successfully');
+      setOpenSnackbar(true);
     } catch (error) {
       console.error('Error inserting work experience:', error);
+
+      setSnackbarSeverity('error');
+      setSnackbarMessage('Failed to add work experience. Please try again later.');
+      setOpenSnackbar(true);
     }
   };
 
@@ -183,8 +214,24 @@ const Staff = () => {
         throw error;
       }
       console.log('Submitted Qualification:', data);
+
+      // Clear the form fields after successful submission
+      setQualification({
+        selectStaff: '',
+        type: '',
+        institution: '',
+        date: ''
+      });
+
+      setSnackbarSeverity('success');
+      setSnackbarMessage('Qualification added successfully');
+      setOpenSnackbar(true);
     } catch (error) {
       console.error('Error inserting qualification:', error);
+
+      setSnackbarSeverity('error');
+      setSnackbarMessage('Failed to add qualification. Please try again later.');
+      setOpenSnackbar(true);
     }
   };
 
@@ -220,12 +267,48 @@ const Staff = () => {
         throw error;
       }
       console.log('Submitted Employment Contract:', data);
+
+      // Clear the form fields after successful submission
+      setEmploymentContract({
+        selectStaff: '',
+        hoursWorkedPerWeek: '',
+        contractType: '',
+        salaryPaymentType:''
+      });
+
+      setSnackbarSeverity('success');
+      setSnackbarMessage('Employment contract added successfully');
+      setOpenSnackbar(true);
     } catch (error) {
       console.error('Error inserting employment contract:', error);
+
+      setSnackbarSeverity('error');
+      setSnackbarMessage('Failed to add employment contract. Please try again later.');
+      setOpenSnackbar(true);
     }
   };
 
-  // TODO: Define any additional state or functions needed
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setOpenSnackbar(false);
+  };
+
+  const validateForm = () => {
+    // Add your form validation logic here
+    return true; // Return true if the form is valid
+  };
+
+  const handleOpenPopup = () => {
+    setStaffListPopupOpen(true);
+  };
+
+  const handleClosePopup = () => {
+    setStaffListPopupOpen(false);
+  };
+
   return (
     <div>
       <Box sx={{ p: 3 }}>
@@ -283,21 +366,16 @@ const Staff = () => {
                     label="Sex"
                     variant="outlined"
                     fullWidth
-                    select
                     required
                     size='small'
                     value={staffInfo.sex}
                     onChange={handleStaffInfoChange}
-                  >
-                    <MenuItem value="Male">Male</MenuItem>
-                    <MenuItem value="Female">Female</MenuItem>
-                  </TextField>
+                  />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
                     name="telephone"
                     label="Telephone"
-                    type="tel"
                     variant="outlined"
                     fullWidth
                     required
@@ -322,25 +400,26 @@ const Staff = () => {
                   <TextField
                     name="dateOfBirth"
                     label="Date of Birth"
-                    type="date"
                     variant="outlined"
                     fullWidth
-                    InputLabelProps={{ shrink: true }}
                     required
                     size='small'
+                    type="date"
                     value={staffInfo.dateOfBirth}
                     onChange={handleStaffInfoChange}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth variant="outlined" size='small'>
+                  <FormControl fullWidth size='small'>
                     <InputLabel>Position</InputLabel>
                     <Select
                       name="position"
-                      label="Position"
-                      required
                       value={staffInfo.position}
                       onChange={handleStaffInfoChange}
+                      required
                     >
                       {positions.map((position) => (
                         <MenuItem key={position.position_id} value={position.position_id}>
@@ -350,245 +429,257 @@ const Staff = () => {
                     </Select>
                   </FormControl>
                 </Grid>
+                <Grid item xs={12} style={{ marginTop: '10px' }}>
+                  <Button variant="contained" color="primary" type="submit">
+                    Submit
+                  </Button>
+                </Grid>
               </Grid>
-              <Box sx={{ mt: 1, textAlign: 'center' }}>
-                <Button type="submit" variant="contained" color="primary"
-                                  size='small'>
-                                  Add Staff
-                                </Button>
-                              </Box>
-                            </ExpandableForm>
-                          </div>
-                
-                          <div>
-                            <ExpandableForm title="Work Experience" onSubmit={handleSubmitWorkExperience}>
-                              <Grid container spacing={1}>
-                                <Grid item xs={12} sm={6}>
-                                  <FormControl fullWidth variant="outlined" size='small'>
-                                    <InputLabel>Select Staff</InputLabel>
-                                    <Select
-                                      name="selectStaff"
-                                      label="Select Staff"
-                                      required
-                                      value={workExperience.selectStaff}
-                                      onChange={handleWorkExperienceChange}
-                                    >
-                                      {staffMembers.map((staff) => (
-                                        <MenuItem key={staff.staff_number} value={staff.staff_number}>
-                                          {`${staff.first_name} ${staff.last_name}`}
-                                        </MenuItem>
-                                      ))}
-                                    </Select>
-                                  </FormControl>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="positionName"
-                                    label="Position Name"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    value={workExperience.positionName}
-                                    onChange={handleWorkExperienceChange}
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="startDate"
-                                    label="Start Date"
-                                    type="date"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    InputLabelProps={{ shrink: true }}
-                                    value={workExperience.startDate}
-                                    onChange={handleWorkExperienceChange}
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="finishDate"
-                                    label="Finish Date"
-                                    type="date"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    InputLabelProps={{ shrink: true }}
-                                    value={workExperience.finishDate}
-                                    onChange={handleWorkExperienceChange}
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="organization"
-                                    label="Organization"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    value={workExperience.organization}
-                                    onChange={handleWorkExperienceChange}
-                                  />
-                                </Grid>
-                              </Grid>
-                              <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                <Button type="submit" variant="contained" color="primary" size='small'>
-                                  Add Work Experience
-                                </Button>
-                              </Box>
-                            </ExpandableForm>
-                          </div>
-                
-                          <div>
-                            <ExpandableForm title="Qualifications" onSubmit={handleSubmitQualification}>
-                              <Grid container spacing={1}>
-                                <Grid item xs={12} sm={6}>
-                                  <FormControl fullWidth variant="outlined" size='small'>
-                                    <InputLabel>Select Staff</InputLabel>
-                                    <Select
-                                      name="selectStaff"
-                                      label="Select Staff"
-                                      required
-                                      value={qualification.selectStaff}
-                                      onChange={handleQualificationChange}
-                                    >
-                                      {staffMembers.map((staff) => (
-                                        <MenuItem key={staff.staff_number} value={staff.staff_number}>
-                                          {`${staff.first_name} ${staff.last_name}`}
-                                        </MenuItem>
-                                      ))}
-                                    </Select>
-                                  </FormControl>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="type"
-                                    label="Type"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    value={qualification.type}
-                                    onChange={handleQualificationChange}
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="institution"
-                                    label="Institution"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    value={qualification.institution}
-                                    onChange={handleQualificationChange}
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="date"
-                                    label="Date"
-                                    type="date"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    InputLabelProps={{ shrink: true }}
-                                    value={qualification.date}
-                                    onChange={handleQualificationChange}
-                                  />
-                                </Grid>
-                              </Grid>
-                              <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                <Button type="submit" variant="contained" color="primary" size='small'>
-                                  Add Qualification
-                                </Button>
-                              </Box>
-                            </ExpandableForm>
-                          </div>
-                
-                          <div>
-                            <ExpandableForm title="Employment Contract" onSubmit={handleSubmitEmploymentContract}>
-                              <Grid container spacing={1}>
-                                <Grid item xs={12} sm={6}>
-                                  <FormControl fullWidth variant="outlined" size='small'>
-                                    <InputLabel>Select Staff</InputLabel>
-                                    <Select
-                                      name="selectStaff"
-                                      label="Select Staff"
-                                      required
-                                      value={employmentContract.selectStaff}
-                                      onChange={handleEmploymentContractChange}
-                                    >
-                                      {staffMembers.map((staff) => (
-                                        <MenuItem key={staff.staff_number} value={staff.staff_number}>
-                                          {`${staff.first_name} ${staff.last_name}`}
-                                        </MenuItem>
-                                      ))}
-                                    </Select>
-                                  </FormControl>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="hoursWorkedPerWeek"
-                                    label="Hours Worked Per Week"
-                                    type="number"
-                                    variant="outlined"
-                                    fullWidth
-                                    required
-                                    size='small'
-                                    value={employmentContract.hoursWorkedPerWeek}
-                                    onChange={handleEmploymentContractChange}
-                                  />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="contractType"
-                                    label="Contract Type"
-                                    variant="outlined"
-                                    fullWidth
-                                    select
-                                    required
-                                    size='small'
-                                    value={employmentContract.contractType}
-                                    onChange={handleEmploymentContractChange}
-                                  >
-                                    <MenuItem value="Temporary">Temporary</MenuItem>
-                                    <MenuItem value="Permanent">Permanent</MenuItem>
-                                  </TextField>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                  <TextField
-                                    name="salaryPaymentType"
-                                    label="Salary Payment Type"
-                                    variant="outlined"
-                                    fullWidth
-                                    select
-                                    required
-                                    size='small'
-                                    value={employmentContract.salaryPaymentType}
-                                    onChange={handleEmploymentContractChange}
-                                  >
-                                    <MenuItem value="Weekly">Weekly</MenuItem>
-                                    <MenuItem value="Monthly">Monthly</MenuItem>
-                                  </TextField>
-                                </Grid>
-                              </Grid>
-                              <Box sx={{ mt: 1, textAlign: 'center' }}>
-                                <Button type="submit" variant="contained" color="primary" size='small'>
-                                  Add Employment Contract
-                                </Button>
-                              </Box>
-                            </ExpandableForm>
-                          </div>
-                        </Box>
-                      </Box>
-                    </div>
-                  );
-                };
-                
-                export default Staff;
-                
+            </ExpandableForm>
+          </div>
+
+          <div>
+            <ExpandableForm title="Work Experience" onSubmit={handleSubmitWorkExperience}>
+              <Grid container spacing={1}>
+                <Grid item xs={12}>
+                  <FormControl fullWidth size='small'>
+                    <InputLabel>Select Staff</InputLabel>
+                    <Select
+                      name="selectStaff"
+                      value={workExperience.selectStaff}
+                      onChange={handleWorkExperienceChange}
+                      required
+                    >
+                      {staffMembers.map((staff) => (
+                        <MenuItem key={staff.staff_number} value={staff.staff_number}>
+                          {staff.first_name} {staff.last_name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="positionName"
+                    label="Position Name"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    value={workExperience.positionName}
+                    onChange={handleWorkExperienceChange}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="startDate"
+                    label="Start Date"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    type="date"
+                    value={workExperience.startDate}
+                    onChange={handleWorkExperienceChange}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="finishDate"
+                    label="Finish Date"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    type="date"
+                    value={workExperience.finishDate}
+                    onChange={handleWorkExperienceChange}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="organization"
+                    label="Organization"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    value={workExperience.organization}
+                    onChange={handleWorkExperienceChange}
+                  />
+                </Grid>
+                <Grid item xs={12} style={{ marginTop: '10px' }}>
+                  <Button variant="contained" color="primary" type="submit">
+                    Submit
+                  </Button>
+                </Grid>
+              </Grid>
+            </ExpandableForm>
+          </div>
+
+          <div>
+            <ExpandableForm title="Qualifications" onSubmit={handleSubmitQualification}>
+              <Grid container spacing={1}>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth size='small'>
+                    <InputLabel>Select Staff</InputLabel>
+                    <Select
+                      name="selectStaff"
+                      value={qualification.selectStaff}
+                      onChange={handleQualificationChange}
+                      required
+                    >
+                      {staffMembers.map((staff) => (
+                        <MenuItem key={staff.staff_number} value={staff.staff_number}>
+                          {staff.first_name} {staff.last_name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="type"
+                    label="Type"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    value={qualification.type}
+                    onChange={handleQualificationChange}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="institution"
+                    label="Institution"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    value={qualification.institution}
+                    onChange={handleQualificationChange}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="date"
+                    label="Date"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    type="date"
+                    value={qualification.date}
+                    onChange={handleQualificationChange}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} style={{ marginTop: '10px' }}>
+                  <Button variant="contained" color="primary" type="submit">
+                    Submit
+                  </Button>
+                </Grid>
+              </Grid>
+            </ExpandableForm>
+          </div>
+
+          <div>
+            <ExpandableForm title="Employment Contract" onSubmit={handleSubmitEmploymentContract}>
+              <Grid container spacing={1}>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth size='small'>
+                    <InputLabel>Select Staff</InputLabel>
+                    <Select
+                      name="selectStaff"
+                      value={employmentContract.selectStaff}
+                      onChange={handleEmploymentContractChange}
+                      required
+                    >
+                      {staffMembers.map((staff) => (
+                        <MenuItem key={staff.staff_number} value={staff.staff_number}>
+                          {staff.first_name} {staff.last_name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="hoursWorkedPerWeek"
+                    label="Hours Worked Per Week"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    value={employmentContract.hoursWorkedPerWeek}
+                    onChange={handleEmploymentContractChange}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="contractType"
+                    label="Contract Type"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    value={employmentContract.contractType}
+                    onChange={handleEmploymentContractChange}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="salaryPaymentType"
+                    label="Salary Payment Type"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    size='small'
+                    value={employmentContract.salaryPaymentType}
+                    onChange={handleEmploymentContractChange}
+                  />
+                </Grid>
+                <Grid item xs={12} style={{ marginTop: '10px' }}>
+                  <Button variant="contained" color="primary" type="submit">
+                    Submit
+                  </Button>
+                </Grid>
+              </Grid>
+            </ExpandableForm>
+          </div>
+
+          <Button style={{marginTop:'10px'}} variant="contained" color="primary" onClick={handleOpenPopup}>
+            Open Staff List Popup
+          </Button>
+
+          <StaffListPopup open={staffListPopupOpen} onClose={handleClosePopup} />
+
+          <Snackbar
+            open={openSnackbar}
+            autoHideDuration={6000}
+            onClose={handleCloseSnackbar}
+            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          >
+            <SnackbarContent
+              message={snackbarMessage}
+              style={{
+                backgroundColor: snackbarSeverity === 'success' ? 'green' : 'red'
+              }}
+            />
+          </Snackbar>
+        </Box>
+      </Box>
+    </div>
+  );
+};
+
+export default Staff;

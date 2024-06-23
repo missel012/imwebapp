@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
+import Autocomplete from '@mui/material/Autocomplete';
 import { supabase } from '../supabaseClient'; // Assuming you have supabase client configured
 
 const StaffListPopup = ({ open, onClose }) => {
@@ -23,11 +24,12 @@ const StaffListPopup = ({ open, onClose }) => {
   const [filteredStaffMembers, setFilteredStaffMembers] = useState([]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editedStaffMember, setEditedStaffMember] = useState({
-    id: '',
-    name: '',
-    position: '',
-    department: ''
+    staff_number: '',
+    first_name: '',
+    telephone: '',
+    position_id: ''
   });
+  const [positionOptions, setPositionOptions] = useState([]);
   const [errorSnackbarOpen, setErrorSnackbarOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successSnackbarOpen, setSuccessSnackbarOpen] = useState(false);
@@ -35,18 +37,54 @@ const StaffListPopup = ({ open, onClose }) => {
 
   useEffect(() => {
     fetchStaffMembers();
+    fetchPositionOptions();
   }, []);
 
   const fetchStaffMembers = async () => {
     try {
-      const { data, error } = await supabase.from('staff').select('*');
+      const { data, error } = await supabase
+        .from('staff')
+        .select('staff_number, first_name, telephone, position_id');
       if (error) {
         throw error;
       }
-      setStaffMembers(data);
-      setFilteredStaffMembers(data);
+
+      // Fetch position name from the staffposition table
+      const staffWithPositionName = await Promise.all(
+        data.map(async (staff) => {
+          const { data: positionData, error: positionError } = await supabase
+            .from('staffposition')
+            .select('position_id, position_name')
+            .eq('position_id', staff.position_id)
+            .single();
+
+          if (positionError) {
+            throw positionError;
+          }
+
+          return {
+            ...staff,
+            position_name: positionData ? positionData.position_name : ''
+          };
+        })
+      );
+
+      setStaffMembers(staffWithPositionName);
+      setFilteredStaffMembers(staffWithPositionName);
     } catch (error) {
       console.error('Error fetching staff members:', error.message);
+    }
+  };
+
+  const fetchPositionOptions = async () => {
+    try {
+      const { data, error } = await supabase.from('staffposition').select('position_id, position_name');
+      if (error) {
+        throw error;
+      }
+      setPositionOptions(data);
+    } catch (error) {
+      console.error('Error fetching position options:', error.message);
     }
   };
 
@@ -55,9 +93,8 @@ const StaffListPopup = ({ open, onClose }) => {
     setSearchTerm(searchTerm);
     const filtered = staffMembers.filter((staff) => {
       return (
-        staff.name.toLowerCase().includes(searchTerm) ||
-        staff.position.toLowerCase().includes(searchTerm) ||
-        staff.department.toLowerCase().includes(searchTerm)
+        staff.first_name.toLowerCase().includes(searchTerm) ||
+        staff.position_name.toLowerCase().includes(searchTerm)
       );
     });
     setFilteredStaffMembers(filtered);
@@ -65,10 +102,10 @@ const StaffListPopup = ({ open, onClose }) => {
 
   const handleEditStaffMember = (staff) => {
     setEditedStaffMember({
-      id: staff.id,
-      name: staff.name,
-      position: staff.position,
-      department: staff.department
+      staff_number: staff.staff_number,
+      first_name: staff.first_name,
+      telephone: staff.telephone,
+      position_id: staff.position_id
     });
     setEditDialogOpen(true);
   };
@@ -80,10 +117,10 @@ const StaffListPopup = ({ open, onClose }) => {
 
   const clearEditedStaffMember = () => {
     setEditedStaffMember({
-      id: '',
-      name: '',
-      position: '',
-      department: ''
+      staff_number: '',
+      first_name: '',
+      telephone: '',
+      position_id: ''
     });
   };
 
@@ -92,23 +129,23 @@ const StaffListPopup = ({ open, onClose }) => {
       const { data, error } = await supabase
         .from('staff')
         .update({
-          name: editedStaffMember.name,
-          position: editedStaffMember.position,
-          department: editedStaffMember.department
+          first_name: editedStaffMember.first_name,
+          telephone: editedStaffMember.telephone,
+          position_id: editedStaffMember.position_id
         })
-        .eq('id', editedStaffMember.id);
+        .eq('staff_number', editedStaffMember.staff_number);
       
       if (error) {
         throw error;
       }
 
       const updatedStaff = staffMembers.map((staff) =>
-        staff.id === editedStaffMember.id
+        staff.staff_number === editedStaffMember.staff_number
           ? {
               ...staff,
-              name: editedStaffMember.name,
-              position: editedStaffMember.position,
-              department: editedStaffMember.department
+              first_name: editedStaffMember.first_name,
+              telephone: editedStaffMember.telephone,
+              position_id: editedStaffMember.position_id
             }
           : staff
       );
@@ -157,14 +194,14 @@ const StaffListPopup = ({ open, onClose }) => {
         ) : (
           <List>
             {filteredStaffMembers.map((staff) => (
-              <ListItem key={staff.id} secondaryAction={
+              <ListItem key={staff.staff_number} secondaryAction={
                 <IconButton edge="end" aria-label="edit" onClick={() => handleEditStaffMember(staff)}>
                   <EditIcon />
                 </IconButton>
               }>
                 <ListItemText
-                  primary={staff.name}
-                  secondary={`Position: ${staff.position}, Department: ${staff.department}`}
+                  primary={staff.first_name}
+                  secondary={`Telephone: ${staff.telephone}, Position: ${staff.position_name}`}
                 />
               </ListItem>
             ))}
@@ -177,28 +214,29 @@ const StaffListPopup = ({ open, onClose }) => {
         <DialogTitle>Edit Staff Member Details</DialogTitle>
         <DialogContent>
           <TextField
-            label="Name"
+            label="First Name"
             variant="outlined"
             fullWidth
             margin="normal"
-            value={editedStaffMember.name}
-            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, name: e.target.value })}
+            value={editedStaffMember.first_name}
+            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, first_name: e.target.value })}
           />
           <TextField
-            label="Position"
+            label="Telephone"
             variant="outlined"
             fullWidth
             margin="normal"
-            value={editedStaffMember.position}
-            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, position: e.target.value })}
+            value={editedStaffMember.telephone}
+            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, telephone: e.target.value })}
           />
-          <TextField
-            label="Department"
-            variant="outlined"
-            fullWidth
-            margin="normal"
-            value={editedStaffMember.department}
-            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, department: e.target.value })}
+          <Autocomplete
+            value={positionOptions.find(option => option.position_id === editedStaffMember.position_id) || null}
+            onChange={(event, newValue) => {
+              setEditedStaffMember({ ...editedStaffMember, position_id: newValue ? newValue.position_id : '' })
+            }}
+            options={positionOptions}
+            getOptionLabel={(option) => option.position_name}
+            renderInput={(params) => <TextField {...params} label="Position" variant="outlined" />}
           />
           <Box sx={{ mt: 2, textAlign: 'center' }}>
             <Button onClick={handleSaveEditedStaffMember} variant="contained" color="primary">
@@ -224,7 +262,6 @@ const StaffListPopup = ({ open, onClose }) => {
         autoHideDuration={6000}
         onClose={() => setErrorSnackbarOpen(false)}
         message={errorMessage}
-        severity="error"
       />
       {/* Snackbar for success message */}
       <Snackbar
@@ -232,7 +269,6 @@ const StaffListPopup = ({ open, onClose }) => {
         autoHideDuration={6000}
         onClose={() => setSuccessSnackbarOpen(false)}
         message={successMessage}
-        severity="success"
       />
     </Dialog>
   );

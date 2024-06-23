@@ -13,7 +13,7 @@ import {
 import { supabase } from '../supabaseClient';
 import MuiAlert from '@mui/material/Alert';
 
-const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
+const AssignBedPopup = ({ open, onClose, onAssign }) => {
   const [selectedWard, setSelectedWard] = useState('');
   const [selectedBed, setSelectedBed] = useState('');
   const [selectedStaff, setSelectedStaff] = useState('');
@@ -23,14 +23,15 @@ const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [snackbarMessage, setSnackbarMessage] = useState('');
-
   const [expectedDuration, setExpectedDuration] = useState('');
   const [dateOfExpectedLeave, setDateOfExpectedLeave] = useState('');
-
   const [staffOptions, setStaffOptions] = useState([]);
+  const [waitingList, setWaitingList] = useState([]);
+  const [selectedWaitingListId, setSelectedWaitingListId] = useState('');
 
   useEffect(() => {
     fetchWards();
+    fetchWaitingList(); // Fetch waiting list independently
   }, []);
 
   const fetchWards = async () => {
@@ -93,34 +94,52 @@ const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
       throw error;
     }
   };
-  
+
+  const fetchWaitingList = async () => {
+    try {
+      let { data: waitingListData, error: waitingListError } = await supabase.from('waitinglist').select('*');
+      if (waitingListError) throw waitingListError;
+
+      setWaitingList(waitingListData);
+    } catch (error) {
+      console.error('Error fetching waiting list:', error.message);
+      setError('Error fetching waiting list. Please try again.');
+    }
+  };
+
+  const handleSnackbarOpen = (severity, message) => {
+    setSnackbarSeverity(severity);
+    setSnackbarMessage(message); // Corrected from setSuccessMessage
+    setSnackbarOpen(true);
+  };
+
   const handleWardChange = async (event) => {
     const selectedWardNumber = event.target.value;
     setSelectedWard(selectedWardNumber);
     setSelectedBed('');
     setSelectedStaff('');
-  
+
     try {
       // Fetch beds for the selected ward
       const bedsData = await fetchBedsByWard(selectedWardNumber);
-  
+
       // Update the beds for the selected ward in the state
       const updatedWards = wards.map((ward) =>
         ward.ward_number === selectedWardNumber ? { ...ward, beds: bedsData } : ward
       );
-  
+
       setWards(updatedWards);
-  
+
       // Select the first bed by default if available
       if (bedsData.length > 0) {
         setSelectedBed(bedsData[0].bed_number);
       } else {
         console.warn('No beds available for the selected ward.');
       }
-  
+
       // Fetch staff assigned to the selected ward
       const staffData = await fetchStaffAssignedToWard(selectedWardNumber);
-  
+
       // Update staff options in the state
       setStaffOptions(
         staffData.map((staff) => ({
@@ -133,15 +152,33 @@ const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
       // Handle fetch error gracefully, e.g., set error state or display a message
     }
   };
-  
+
   const handleAssignBed = async () => {
     try {
+      // Fetch the patient_number from waitinglist based on list_id
+      const { data: waitingListItem, error: waitingListError } = await supabase
+        .from('waitinglist')
+        .select('patient_number')
+        .eq('list_id', selectedWaitingListId) // Use selectedWaitingListId here
+        .single(); // Use .single() to ensure only one row is returned
+  
+      if (waitingListError) {
+        throw waitingListError;
+      }
+  
+      if (!waitingListItem) {
+        throw new Error('No waiting list item found for the given list ID');
+      }
+  
+      const patientNumber = waitingListItem.patient_number;
+  
       // Ensure you have all required fields filled and handle assignment logic
       await supabase
         .from('in_patient')
         .insert([
           {
-            list_id: listId,
+            list_id: selectedWaitingListId, // Assign list_id from state
+            patient_number: patientNumber, // Assign patient number from waitinglist
             ward_number: selectedWard,
             bed_number: selectedBed,
             staff_number: selectedStaff,
@@ -150,12 +187,10 @@ const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
             date_of_expected_leave: dateOfExpectedLeave,
           },
         ]);
-
-      // Remove patient from WaitingList
-    //  await supabase.from('waitinglist').delete().eq('list_id', listId);
-
-      onAssign(); // Callback to parent component
+  
       onClose(); // Close the dialog
+      onAssign(); // Update waiting list and in-patients
+      handleSnackbarOpen('success', 'Bed assigned successfully!');
     } catch (error) {
       console.error('Error assigning bed or inserting into In_Patient:', error.message);
       setSnackbarSeverity('error');
@@ -163,6 +198,7 @@ const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
       setSnackbarOpen(true);
     }
   };
+  
 
   const handleSnackbarClose = (event, reason) => {
     if (reason === 'clickaway') {
@@ -242,13 +278,35 @@ const AssignBedPopup = ({ open, onClose, listId, onAssign }) => {
           }}
         />
 
+        <TextField
+          label="Waiting List ID"
+          select
+          fullWidth
+          value={selectedWaitingListId}
+          onChange={(e) => setSelectedWaitingListId(e.target.value)}
+        >
+          {waitingList.map((item) => (
+            <MenuItem key={item.list_id} value={item.list_id}>
+              {item.list_id}
+            </MenuItem>
+          ))}
+        </TextField>
+
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
         <Button
-          onClick={handleAssignBed}
+          onClick={handleAssignBed} 
           color="primary"
-          disabled={!selectedWard || !selectedBed || !selectedStaff || !expectedDuration || !dateOfExpectedLeave}
+          variant="contained"
+          disabled={
+            !selectedWard ||
+            !selectedBed ||
+            !selectedStaff ||
+            !expectedDuration ||
+            !dateOfExpectedLeave ||
+            !selectedWaitingListId
+          }
         >
           Assign Bed
         </Button>
