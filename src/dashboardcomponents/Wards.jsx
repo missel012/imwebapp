@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Grid,
+  TextField,
   Box,
+  MenuItem,
   Paper,
   Button,
-  TextField,
-  Grid,
-  MenuItem,
-  Snackbar,
   TableContainer,
   Table,
   TableHead,
@@ -14,14 +13,17 @@ import {
   TableRow,
   TableCell,
   IconButton,
+  Snackbar,
   CircularProgress,
 } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import ExpandableForm from './ExpandableForm';
 import AssignBedPopup from './AssignBedPopup';
+import ConfirmationDialog from './ConfirmationDialog'; // Assuming you have ConfirmationDialog component in './ConfirmationDialog'
 import { supabase } from '../supabaseClient';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
+import { format } from 'date-fns';
 
 const Wards = () => {
   const [newAssignment, setNewAssignment] = useState({
@@ -43,6 +45,9 @@ const Wards = () => {
   const [patientNames, setPatientNames] = useState({});
   const [editableRows, setEditableRows] = useState({});
   const [expectedWaitTime, setExpectedWaitTime] = useState('');
+  const [openConfirmation, setOpenConfirmation] = useState(false);
+  const [confirmationPatientNumber, setConfirmationPatientNumber] = useState('');
+  const [confirmationPatientName, setConfirmationPatientName] = useState('');
 
   useEffect(() => {
     fetchWards();
@@ -79,9 +84,11 @@ const Wards = () => {
     try {
       let { data, error } = await supabase.from('waitinglist').select('*');
       if (error) throw error;
-      setWaitingList(data);
+      // Filter out waiting list items with status "done"
+      const filteredWaitingList = data.filter(item => item.status !== 'done');
+      setWaitingList(filteredWaitingList);
       const initialEditableRows = {};
-      data.forEach((row) => {
+      filteredWaitingList.forEach((row) => {
         initialEditableRows[row.list_id] = false;
       });
       setEditableRows(initialEditableRows);
@@ -238,6 +245,35 @@ const Wards = () => {
     handleCloseAssignPopup();
   };
 
+  const handleDischargePatient = async (patientNumber) => {
+    try {
+      const currentDate = format(new Date(), 'yyyy-MM-dd');
+      await supabase
+        .from('in_patient')
+        .update({ date_of_actual_leave: currentDate })
+        .eq('patient_number', patientNumber);
+      
+      // Remove discharged patient from in-patients list
+      const updatedInPatients = inPatients.filter(patient => patient.patient_number !== patientNumber);
+      setInPatients(updatedInPatients);
+      handleSnackbarOpen('success', 'Patient discharged successfully.');
+    } catch (error) {
+      console.error('Error discharging patient:', error.message);
+      handleSnackbarOpen('error', 'Error discharging patient. Please try again.');
+    }
+  };
+
+  const handleDischargeConfirmation = (patientNumber, patientName) => {
+    setConfirmationPatientNumber(patientNumber);
+    setConfirmationPatientName(patientName);
+    setOpenConfirmation(true);
+  };
+
+  const handleConfirmDischarge = async () => {
+    handleDischargePatient(confirmationPatientNumber);
+    setOpenConfirmation(false);
+  };
+
   if (loading) {
     return (
       <Box sx={{ p: 3 }}>
@@ -249,8 +285,12 @@ const Wards = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Paper elevation={3}>
-        {/* Your paper content here */}
-      </Paper>
+          <div className="icon" style={{ display: 'flex' }}>
+            <div style={{ margin: '8px' }}>
+              <img src="../../img/ward.png" alt="Patient" />
+            </div>
+          </div>
+        </Paper>
 
       {/* First Expandable Form: Allocate Staff to Ward */}
       <ExpandableForm title="Allocate Staff to Ward">
@@ -284,193 +324,215 @@ const Wards = () => {
               size="small"
               select
               value={newAssignment.staff_number}
-                onChange={handleFieldChange}
-                >
-                  {eligibleStaff.map((staff) => (
-                    <MenuItem key={staff.staff_number} value={staff.staff_number}>
-                      {`${staff.staff_number} - ${staff.first_name} ${staff.last_name}`}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  name="shift"
-                  label="Select Shift"
-                  variant="outlined"
-                  fullWidth
-                  required
-                  size="small"
-                  select
-                  value={newAssignment.shift}
-                  onChange={handleFieldChange}
-                >
-                  <MenuItem value={'Early'}>Early</MenuItem>
-                  <MenuItem value={'Late'}>Late</MenuItem>
-                  <MenuItem value={'Night'}>Night</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    onClick={handleAddAssignment}
-                  >
-                    Allocate Staff
-                  </Button>
-                </Box>
-              </Grid>
-            </Grid>
-          </ExpandableForm>
-    
-          {/* Second Expandable Form: Waiting List */}
-          <ExpandableForm title="Waiting List">
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>List ID</TableCell>
-                    <TableCell>Patient Number</TableCell>
-                    <TableCell>Patient Name</TableCell>
-                    <TableCell>Date Placed on Waiting List</TableCell>
-                    <TableCell>Expected Wait Time (hours)</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {waitingList.map((row) => (
-                    <TableRow key={row.list_id}>
-                      <TableCell>{row.list_id}</TableCell>
-                      <TableCell>{row.patient_number}</TableCell>
-                      <TableCell>{patientNames[row.patient_number]}</TableCell>
-                      <TableCell>
-                        {editableRows[row.list_id] ? (
-                          <TextField
-                            type="date"
-                            variant="outlined"
-                            size="small"
-                            value={row.date_placed_on_waiting_list}
-                            onChange={(e) =>
-                              handleCellEdit(
-                                e.target.value,
-                                row.list_id,
-                                'date_placed_on_waiting_list'
-                              )
-                            }
-                          />
-                        ) : (
-                          row.date_placed_on_waiting_list
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editableRows[row.list_id] ? (
-                          <TextField
-                            variant="outlined"
-                            size="small"
-                            value={expectedWaitTime}
-                            onChange={handleInputChange}
-                          />
-                        ) : (
-                          row.expected_wait_time
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editableRows[row.list_id] ? (
-                          <IconButton
-                            color="primary"
-                            onClick={() => {
-                              handleDelayedSaveWaitTime(
-                                row.list_id,
-                                expectedWaitTime
-                              );
-                              toggleEditMode(row.list_id);
-                            }}
-                          >
-                            <CheckIcon />
-                          </IconButton>
-                        ) : (
-                          <IconButton
-                            color="primary"
-                            onClick={() => toggleEditMode(row.list_id)}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <Box sx={{ textAlign: 'center', mt: 2 }}>
+              onChange={handleFieldChange}
+            >
+              {eligibleStaff.map((staff) => (
+                <MenuItem key={staff.staff_number} value={staff.staff_number}>
+                  {`${staff.staff_number} - ${staff.first_name} ${staff.last_name}`}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              name="shift"
+              label="Select Shift"
+              variant="outlined"
+              fullWidth
+              required
+              size="small"
+              select
+              value={newAssignment.shift}
+              onChange={handleFieldChange}
+            >
+              <MenuItem value={'Early'}>Early</MenuItem>
+              <MenuItem value={'Late'}>Late</MenuItem>
+              <MenuItem value={'Night'}>Night</MenuItem>
+            </TextField>
+          </Grid>
+          <Grid item xs={12}>
+            <Box sx={{ textAlign: 'center' }}>
               <Button
                 variant="contained"
                 color="primary"
                 size="small"
-                onClick={handleOpenAssignPopup}
+                onClick={handleAddAssignment}
               >
-                Assign Bed
+                Allocate Staff
               </Button>
             </Box>
-          </ExpandableForm>
-    
-          {/* Third Expandable Form: Current Inpatients */}
-          <ExpandableForm title="Current Inpatients">
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Patient Number</TableCell>
-                    <TableCell>Bed Number</TableCell>
-                    <TableCell>Assigned Date</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {inPatients.map((inPatient) => (
-                    <TableRow key={inPatient.patient_number}>
-                      <TableCell>{inPatient.patient_number}</TableCell>
-                      <TableCell>{inPatient.bed_number}</TableCell>
-                      <TableCell>{inPatient.assigned_date}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </ExpandableForm>
-    
-          {/* Popup for Assigning a Bed */}
-          <AssignBedPopup
-            open={openAssignPopup}
-            onClose={handleCloseAssignPopup}
-            title="Assign Bed"
-            onAssign={handleAssign}
-          />
-    
-          {/* Snackbar for success and error messages */}
-          <Snackbar
-            open={openSnackbar}
-            autoHideDuration={5000}
-            onClose={handleCloseSnackbar}
+          </Grid>
+        </Grid>
+      </ExpandableForm>
+
+      {/* Second Expandable Form: Waiting List */}
+      <ExpandableForm title="Waiting List">
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>List ID</TableCell>
+                <TableCell>Patient Number</TableCell>
+                <TableCell>Patient Name</TableCell>
+                <TableCell>Date Placed on Waiting List</TableCell>
+                <TableCell>Expected Wait Time (hours)</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {waitingList.map((row) => (
+                <TableRow key={row.list_id}>
+                  <TableCell>{row.list_id}</TableCell>
+                  <TableCell>{row.patient_number}</TableCell>
+                  <TableCell>{patientNames[row.patient_number]}</TableCell>
+                  <TableCell>
+                    {editableRows[row.list_id] ? (
+                      <TextField
+                        type="date"
+                        variant="outlined"
+                        size="small"
+                        value={row.date_placed_on_waiting_list}
+                        onChange={(e) =>
+                          handleCellEdit(
+                            e.target.value,
+                            row.list_id,
+                            'date_placed_on_waiting_list'
+                          )
+                        }
+                      />
+                    ) : (
+                      row.date_placed_on_waiting_list
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editableRows[row.list_id] ? (
+                      <TextField
+                        variant="outlined"
+                        size="small"
+                        value={expectedWaitTime}
+                        onChange={handleInputChange}
+                      />
+                    ) : (
+                      row.expected_wait_time
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editableRows[row.list_id] ? (
+                      <IconButton
+                        color="primary"
+                        onClick={() => {
+                          handleDelayedSaveWaitTime(
+                            row.list_id,
+                            expectedWaitTime
+                          );
+                          toggleEditMode(row.list_id);
+                        }}
+                      >
+                        <CheckIcon />
+                      </IconButton>
+                    ) : (
+                      <IconButton
+                        color="primary"
+                        onClick={() => toggleEditMode(row.list_id)}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Box sx={{ textAlign: 'center', mt: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={handleOpenAssignPopup}
           >
-            <MuiAlert
-              elevation={6}
-              variant="filled"
-              onClose={handleCloseSnackbar}
-              severity={snackbarSeverity}
-            >
-              {successMessage || error}
-            </MuiAlert>
-          </Snackbar>
-    
-          {/* Display error message */}
-          {error && (
-            <Box sx={{ mt: 2, textAlign: 'center', color: 'red' }}>{error}</Box>
-          )}
+            Assign Bed
+          </Button>
         </Box>
-      );
-    };
-    
-    export default Wards;
-    
+      </ExpandableForm>
+
+      {/* Third Expandable Form: Current Inpatients */}
+      <ExpandableForm title="Current Inpatients">
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Patient Number</TableCell>
+                <TableCell>Patient Name</TableCell>
+                <TableCell>Expected Duration of Stay</TableCell>
+                <TableCell>Date Placed in Ward</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {inPatients.map((inPatient) => (
+                <TableRow key={inPatient.patient_number}>
+                  <TableCell>{inPatient.patient_number}</TableCell>
+                  <TableCell>{patientNames[inPatient.patient_number]}</TableCell>
+                  <TableCell>{inPatient.expected_duration_of_stay}</TableCell>
+                  <TableCell>{inPatient.date_placed_in_ward}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      size="small"
+                      onClick={() => handleDischargeConfirmation(inPatient.patient_number, patientNames[inPatient.patient_number])}
+                    >
+                      Discharge
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </ExpandableForm>
+
+      {/* Popup for Assigning a Bed */}
+      <AssignBedPopup
+        open={openAssignPopup}
+        onClose={handleCloseAssignPopup}
+        title="Assign Bed"
+        onAssign={handleAssign}
+      />
+
+      {/* Confirmation Dialog for Discharge */}
+      <ConfirmationDialog
+        open={openConfirmation}
+        onClose={() => setOpenConfirmation(false)}
+        onConfirm={handleConfirmDischarge}
+        patientNumber={confirmationPatientNumber}
+        patientName={confirmationPatientName}
+      />
+
+      {/* Snackbar for success and error messages */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={5000}
+        onClose={handleCloseSnackbar}
+      >
+        <MuiAlert
+          elevation={6}
+          variant="filled"
+          onClose={handleCloseSnackbar}
+          severity={snackbarSeverity}
+        >
+          {successMessage || error}
+        </MuiAlert>
+      </Snackbar>
+
+      {/* Display error message */}
+      {error && (
+        <Box sx={{ mt: 2, textAlign: 'center', color: 'red' }}>{error}</Box>
+      )}
+    </Box>
+  );
+};
+
+export default Wards;
+

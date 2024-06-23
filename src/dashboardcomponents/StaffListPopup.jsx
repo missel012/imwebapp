@@ -26,7 +26,12 @@ const StaffListPopup = ({ open, onClose }) => {
   const [editedStaffMember, setEditedStaffMember] = useState({
     staff_number: '',
     first_name: '',
+    last_name: '',
+    address: '',
+    sex: '',
     telephone: '',
+    date_of_birth: '',
+    NIN: '',
     position_id: ''
   });
   const [positionOptions, setPositionOptions] = useState([]);
@@ -44,7 +49,7 @@ const StaffListPopup = ({ open, onClose }) => {
     try {
       const { data, error } = await supabase
         .from('staff')
-        .select('staff_number, first_name, telephone, position_id');
+        .select('*'); // Select all fields from staff table
       if (error) {
         throw error;
       }
@@ -54,7 +59,7 @@ const StaffListPopup = ({ open, onClose }) => {
         data.map(async (staff) => {
           const { data: positionData, error: positionError } = await supabase
             .from('staffposition')
-            .select('position_id, position_name')
+            .select('position_name')
             .eq('position_id', staff.position_id)
             .single();
 
@@ -78,7 +83,9 @@ const StaffListPopup = ({ open, onClose }) => {
 
   const fetchPositionOptions = async () => {
     try {
-      const { data, error } = await supabase.from('staffposition').select('position_id, position_name');
+      const { data, error } = await supabase
+        .from('staffposition')
+        .select('position_id, position_name');
       if (error) {
         throw error;
       }
@@ -94,6 +101,7 @@ const StaffListPopup = ({ open, onClose }) => {
     const filtered = staffMembers.filter((staff) => {
       return (
         staff.first_name.toLowerCase().includes(searchTerm) ||
+        staff.last_name.toLowerCase().includes(searchTerm) ||
         staff.position_name.toLowerCase().includes(searchTerm)
       );
     });
@@ -102,10 +110,8 @@ const StaffListPopup = ({ open, onClose }) => {
 
   const handleEditStaffMember = (staff) => {
     setEditedStaffMember({
-      staff_number: staff.staff_number,
-      first_name: staff.first_name,
-      telephone: staff.telephone,
-      position_id: staff.position_id
+      ...staff,
+      date_of_birth: staff.date_of_birth ? new Date(staff.date_of_birth).toISOString().split('T')[0] : ''
     });
     setEditDialogOpen(true);
   };
@@ -119,7 +125,12 @@ const StaffListPopup = ({ open, onClose }) => {
     setEditedStaffMember({
       staff_number: '',
       first_name: '',
+      last_name: '',
+      address: '',
+      sex: '',
       telephone: '',
+      date_of_birth: '',
+      nin: '',
       position_id: ''
     });
   };
@@ -130,7 +141,12 @@ const StaffListPopup = ({ open, onClose }) => {
         .from('staff')
         .update({
           first_name: editedStaffMember.first_name,
+          last_name: editedStaffMember.last_name,
+          address: editedStaffMember.address,
+          sex: editedStaffMember.sex,
           telephone: editedStaffMember.telephone,
+          date_of_birth: editedStaffMember.date_of_birth,
+          nin: editedStaffMember.nin,
           position_id: editedStaffMember.position_id
         })
         .eq('staff_number', editedStaffMember.staff_number);
@@ -144,7 +160,12 @@ const StaffListPopup = ({ open, onClose }) => {
           ? {
               ...staff,
               first_name: editedStaffMember.first_name,
+              last_name: editedStaffMember.last_name,
+              address: editedStaffMember.address,
+              sex: editedStaffMember.sex,
               telephone: editedStaffMember.telephone,
+              date_of_birth: editedStaffMember.date_of_birth,
+              nin: editedStaffMember.nin,
               position_id: editedStaffMember.position_id
             }
           : staff
@@ -200,7 +221,7 @@ const StaffListPopup = ({ open, onClose }) => {
                 </IconButton>
               }>
                 <ListItemText
-                  primary={staff.first_name}
+                  primary={`${staff.first_name} ${staff.last_name}`}
                   secondary={`Telephone: ${staff.telephone}, Position: ${staff.position_name}`}
                 />
               </ListItem>
@@ -222,6 +243,30 @@ const StaffListPopup = ({ open, onClose }) => {
             onChange={(e) => setEditedStaffMember({ ...editedStaffMember, first_name: e.target.value })}
           />
           <TextField
+            label="Last Name"
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            value={editedStaffMember.last_name}
+            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, last_name: e.target.value })}
+          />
+          <TextField
+            label="Address"
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            value={editedStaffMember.address}
+            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, address: e.target.value })}
+          />
+          <TextField
+            label="Sex"
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            value={editedStaffMember.sex}
+            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, sex: e.target.value })}
+          />
+          <TextField
             label="Telephone"
             variant="outlined"
             fullWidth
@@ -229,49 +274,70 @@ const StaffListPopup = ({ open, onClose }) => {
             value={editedStaffMember.telephone}
             onChange={(e) => setEditedStaffMember({ ...editedStaffMember, telephone: e.target.value })}
           />
-          <Autocomplete
+          <TextField
+            label="Date of Birth"
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            type="date"
+            value={editedStaffMember.date_of_birth}
+            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, date_of_birth: e.target.value })}
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+          <TextField
+            label="NIN"
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            value={editedStaffMember.nin}
+            onChange={(e) => setEditedStaffMember({ ...editedStaffMember, nin: e.target.value })}
+            />
+            <Autocomplete
             value={positionOptions.find(option => option.position_id === editedStaffMember.position_id) || null}
             onChange={(event, newValue) => {
-              setEditedStaffMember({ ...editedStaffMember, position_id: newValue ? newValue.position_id : '' })
+            setEditedStaffMember({ ...editedStaffMember, position_id: newValue ? newValue.position_id : '' })
             }}
             options={positionOptions}
             getOptionLabel={(option) => option.position_name}
             renderInput={(params) => <TextField {...params} label="Position" variant="outlined" />}
-          />
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            />
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
             <Button onClick={handleSaveEditedStaffMember} variant="contained" color="primary">
-              Save
+            Save
             </Button>
             <Button onClick={handleCloseEditDialog} variant="contained" color="secondary" sx={{ ml: 2 }}>
-              Cancel
+            Cancel
             </Button>
-          </Box>
-        </DialogContent>
-      </Dialog>
-      {/* End Edit Dialog */}
+            </Box>
+            </DialogContent>
+            </Dialog>
+            {/* End Edit Dialog */}
+            <Box sx={{ mt: 2, textAlign: 'center', padding: '16px' }}>
+    <Button onClick={onClose} variant="contained" color="secondary">
+      Close
+    </Button>
+  </Box>
 
-      <Box sx={{ mt: 2, textAlign: 'center', padding: '16px' }}>
-        <Button onClick={onClose} variant="contained" color="secondary">
-          Close
-        </Button>
-      </Box>
-
-      {/* Snackbar for error message */}
-      <Snackbar
-        open={errorSnackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setErrorSnackbarOpen(false)}
-        message={errorMessage}
-      />
-      {/* Snackbar for success message */}
-      <Snackbar
-        open={successSnackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setSuccessSnackbarOpen(false)}
-        message={successMessage}
-      />
-    </Dialog>
-  );
+  {/* Snackbar for error message */}
+  <Snackbar
+    open={errorSnackbarOpen}
+    autoHideDuration={6000}
+    onClose={() => setErrorSnackbarOpen(false)}
+    message={errorMessage}
+  />
+  {/* Snackbar for success message */}
+  <Snackbar
+    open={successSnackbarOpen}
+    autoHideDuration={6000}
+    onClose={() => setSuccessSnackbarOpen(false)}
+    message={successMessage}
+  />
+</Dialog>
+);
 };
 
 export default StaffListPopup;
+
+

@@ -97,7 +97,11 @@ const AssignBedPopup = ({ open, onClose, onAssign }) => {
 
   const fetchWaitingList = async () => {
     try {
-      let { data: waitingListData, error: waitingListError } = await supabase.from('waitinglist').select('*');
+      let { data: waitingListData, error: waitingListError } = await supabase
+        .from('waitinglist')
+        .select('*')
+        .or('status.is.null,status.neq.done'); // Exclude entries with status "done"
+        
       if (waitingListError) throw waitingListError;
 
       setWaitingList(waitingListData);
@@ -109,7 +113,7 @@ const AssignBedPopup = ({ open, onClose, onAssign }) => {
 
   const handleSnackbarOpen = (severity, message) => {
     setSnackbarSeverity(severity);
-    setSnackbarMessage(message); // Corrected from setSuccessMessage
+    setSnackbarMessage(message);
     setSnackbarOpen(true);
   };
 
@@ -179,7 +183,6 @@ const AssignBedPopup = ({ open, onClose, onAssign }) => {
           {
             list_id: selectedWaitingListId, // Assign list_id from state
             patient_number: patientNumber, // Assign patient number from waitinglist
-            ward_number: selectedWard,
             bed_number: selectedBed,
             staff_number: selectedStaff,
             expected_duration_of_stay: expectedDuration,
@@ -187,18 +190,27 @@ const AssignBedPopup = ({ open, onClose, onAssign }) => {
             date_of_expected_leave: dateOfExpectedLeave,
           },
         ]);
+
+      // Update the status in the waitinglist table
+      const { error: updateError } = await supabase
+        .from('waitinglist')
+        .update({ status: 'done' })
+        .eq('list_id', selectedWaitingListId);
+
+      if (updateError) {
+        throw updateError;
+      }
   
       onClose(); // Close the dialog
       onAssign(); // Update waiting list and in-patients
       handleSnackbarOpen('success', 'Bed assigned successfully!');
     } catch (error) {
-      console.error('Error assigning bed or inserting into In_Patient:', error.message);
+      console.error('Error assigning bed or updating waiting list status:', error.message);
       setSnackbarSeverity('error');
       setSnackbarMessage('Error assigning bed. Please try again.');
       setSnackbarOpen(true);
     }
   };
-  
 
   const handleSnackbarClose = (event, reason) => {
     if (reason === 'clickaway') {
@@ -296,7 +308,7 @@ const AssignBedPopup = ({ open, onClose, onAssign }) => {
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
         <Button
-          onClick={handleAssignBed} 
+          onClick={handleAssignBed}
           color="primary"
           variant="contained"
           disabled={

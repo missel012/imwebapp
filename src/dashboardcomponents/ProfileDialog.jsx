@@ -221,16 +221,6 @@ const ProfileDialog = ({ open, handleClose }) => {
         </div>
         <TextField
           margin="dense"
-          label="Access Level"
-          type="text"
-          fullWidth
-          name="access_level"
-          value={profile ? profile.access_level : ''}
-          onChange={handleChange}
-          disabled
-        />
-        <TextField
-          margin="dense"
           label="Current Password"
           type={currentPasswordVisible ? 'text' : 'password'}
           fullWidth
