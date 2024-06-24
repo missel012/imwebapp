@@ -11,7 +11,8 @@
   justify-content: space-between; /* Ensure space between logo and logout button */
   padding: 20px;
   overflow-y: hidden; /* Change to hidden to remove the scrollbar */
-  z-index: 1; /* Ensure sidebar is above content */
+  z-index: 2; /* Ensure sidebar is above content */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); 
 }
 
 .sidebar .logo {
@@ -52,7 +53,7 @@
 .logout {
   width: 100%;
   padding: 10px;
-  background-color: #404040;
+  background-color: #023c77;
   color: white;
   border: none;
   cursor: pointer;
@@ -62,5 +63,5 @@
 }
 
 .logout:hover {
-  background-color: #e04444;
+  background-color: #9f2929;
 }

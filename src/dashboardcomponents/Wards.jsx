@@ -24,6 +24,18 @@ import { supabase } from '../supabaseClient';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import { format } from 'date-fns';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#0b61b8',
+    },
+    secondary: {
+      main: '#2E8B57',
+    }
+  },
+});
 
 const Wards = () => {
   const [newAssignment, setNewAssignment] = useState({
@@ -119,12 +131,17 @@ const Wards = () => {
     try {
       let { data, error } = await supabase.from('in_patient').select('*');
       if (error) throw error;
-      setInPatients(data);
+      
+      // Filter out patients with a non-null date_of_actual_leave
+      const filteredInPatients = data.filter(patient => !patient.date_of_actual_leave);
+      
+      setInPatients(filteredInPatients);
     } catch (error) {
       console.error('Error fetching in-patients:', error.message);
       handleSnackbarOpen('error', 'Error fetching in-patients. Please try again.');
     }
   };
+  
 
   const handleAddAssignment = async () => {
     if (!newAssignment.ward_number || !newAssignment.staff_number || !newAssignment.shift) {
@@ -283,6 +300,7 @@ const Wards = () => {
   }
 
   return (
+    <ThemeProvider theme={theme}>
     <Box sx={{ p: 3 }}>
       <Paper elevation={3}>
           <div className="icon" style={{ display: 'flex' }}>
@@ -531,6 +549,7 @@ const Wards = () => {
         <Box sx={{ mt: 2, textAlign: 'center', color: 'red' }}>{error}</Box>
       )}
     </Box>
+    </ThemeProvider>
   );
 };
 

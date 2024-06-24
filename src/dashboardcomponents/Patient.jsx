@@ -4,6 +4,19 @@ import { supabase } from '../supabaseClient';
 import PatientListPopup from './PatientListPopup';
 import ExpandableForm from './ExpandableForm';
 import { Snackbar } from '@mui/material';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#0b61b8', 
+    },
+    secondary: {
+      main: '#C40C0C',
+    }
+  },
+});
+
 
 const Patient = () => {
   const [clinics, setClinics] = useState([]);
@@ -244,6 +257,8 @@ const Patient = () => {
   };
 
   return (
+
+    <ThemeProvider theme={theme}>
     <div>
 
       <Box sx={{ p: 3 }}>
@@ -419,7 +434,7 @@ const Patient = () => {
                       key={patient.patient_number}
                       value={patient.patient_number}
                     >
-                      {`${patient.first_name} ${patient.last_name}`}
+                      {`${patient.patient_number} - ${patient.first_name} ${patient.last_name}`}
                     </MenuItem>
                   ))}
                 </Select>
@@ -503,7 +518,7 @@ const Patient = () => {
                       key={patient.patient_number}
                       value={patient.patient_number}
                     >
-                      {`${patient.first_name} ${patient.last_name}`}
+                      {`${patient.patient_number} - ${patient.first_name} ${patient.last_name}`}
                     </MenuItem>
                   ))}
                 </Select>
@@ -704,6 +719,7 @@ const Patient = () => {
         severity="error"
       />
     </div>
+    </ThemeProvider>
   );
 };
 

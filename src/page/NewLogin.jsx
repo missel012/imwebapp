@@ -120,7 +120,7 @@ const NewLogin = () => {
 
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/dashboard/welcome');
     } catch (error) {
       setError(error.message);
     } finally {

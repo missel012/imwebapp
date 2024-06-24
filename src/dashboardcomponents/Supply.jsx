@@ -1,22 +1,33 @@
 import React, { useState, useEffect, forwardRef } from 'react';
 import {
-  Box, Button, Grid, MenuItem, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Snackbar
+  Box, Button, Grid, MenuItem, Paper, TextField, Snackbar,
+  TableContainer, Table, TableHead, TableBody, TableRow, TableCell
 } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import ExpandableForm from './ExpandableForm'; // Assuming you have this component
 import { supabase } from '../supabaseClient'; // Your Supabase client setup
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#0b61b8',
+    },
+  },
+});
 
 const Alert = forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
 const Supply = () => {
-  const [staffList, setStaffList] = useState([]);
   const [itemList, setItemList] = useState([]);
   const [wardList, setWardList] = useState([]);
+  const [staffAssignedToWardList, setStaffAssignedToWardList] = useState([]);
+  const [suppliersList, setSuppliersList] = useState([]);
   const [wardRequisitionList, setWardRequisitionList] = useState([]);
   const [requisitionSupplyList, setRequisitionSupplyList] = useState([]);
-  const [suppliersList, setSuppliersList] = useState([]);
+  const [isTableVisible, setIsTableVisible] = useState(false);
 
   const [formData, setFormData] = useState({
     staff_number: '',
@@ -24,7 +35,6 @@ const Supply = () => {
     ward_number: '',
     quantity_ordered: 0,
     date_ordered: '',
-    supplier_number: '',
   });
 
   const [newSupplyData, setNewSupplyData] = useState({
@@ -39,28 +49,16 @@ const Supply = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-  const [isTableVisible, setIsTableVisible] = useState(false);
 
   useEffect(() => {
-    fetchStaff();
     fetchItems();
     fetchWards();
+    fetchSuppliers();
     fetchWardRequisitions();
     fetchRequisitionSupplies();
-    fetchSuppliers();
   }, []);
 
-  const fetchStaff = async () => {
-    try {
-      const { data, error } = await supabase.from('staff').select('*');
-      if (error) throw error;
-      setStaffList(data);
-    } catch (error) {
-      console.error('Error fetching staff:', error.message);
-      showSnackbar('Failed to fetch staff', 'error');
-    }
-  };
-
+  
   const fetchItems = async () => {
     try {
       const { data, error } = await supabase.from('supply').select('*');
@@ -71,7 +69,6 @@ const Supply = () => {
       showSnackbar('Failed to fetch items', 'error');
     }
   };
-
   const fetchWards = async () => {
     try {
       const { data, error } = await supabase.from('ward').select('*');
@@ -80,6 +77,17 @@ const Supply = () => {
     } catch (error) {
       console.error('Error fetching wards:', error.message);
       showSnackbar('Failed to fetch wards', 'error');
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase.from('suppliers').select('*');
+      if (error) throw error;
+      setSuppliersList(data);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error.message);
+      showSnackbar('Failed to fetch suppliers', 'error');
     }
   };
 
@@ -105,25 +113,49 @@ const Supply = () => {
     }
   };
 
-  const fetchSuppliers = async () => {
+  const fetchStaffAssignedToWard = async (wardNumber) => {
     try {
-      const { data, error } = await supabase.from('suppliers').select('*');
-      if (error) throw error;
-      setSuppliersList(data);
+      // Fetch staff numbers assigned to the selected ward
+      const { data: staffData, error: staffError } = await supabase
+        .from('staff_assigned_to_ward')
+        .select('staff_number')
+        .eq('ward_number', wardNumber);
+
+      if (staffError) throw staffError;
+
+      // Extract staff numbers from the response data
+      const staffNumbers = staffData.map((staff) => staff.staff_number);
+
+      // Fetch detailed staff information using the staff numbers
+      const { data: detailedStaffData, error: detailedStaffError } = await supabase
+        .from('staff')
+        .select('*')
+        .in('staff_number', staffNumbers);
+
+      if (detailedStaffError) throw detailedStaffError;
+
+      setStaffAssignedToWardList(detailedStaffData); // Update state with detailed staff info
     } catch (error) {
-      console.error('Error fetching suppliers:', error.message);
-      showSnackbar('Failed to fetch suppliers', 'error');
+      console.error('Error fetching staff assigned to ward:', error.message);
+      showSnackbar('Failed to fetch staff assigned to ward', 'error');
     }
   };
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setFormData({ ...formData, [name]: value });
+    if (name === 'ward_number') {
+      fetchStaffAssignedToWard(value);
+    }
   };
 
   const handleNewSupplyInputChange = (event) => {
     const { name, value } = event.target;
     setNewSupplyData({ ...newSupplyData, [name]: value });
+  };
+
+  const toggleTableVisibility = () => {
+    setIsTableVisible(!isTableVisible);
   };
 
   const handleSubmitRequisition = async () => {
@@ -182,25 +214,44 @@ const Supply = () => {
       showSnackbar('Failed to submit requisition', 'error');
     }
   };
+
   const handleSubmitNewSupply = async () => {
     try {
-      // Validate required fields
-      if (!newSupplyData.supply_name || !newSupplyData.supply_description || 
-          newSupplyData.quantity_in_stock <= 0 || newSupplyData.reorder_level <= 0 || 
-          newSupplyData.cost_per_unit <= 0 || !newSupplyData.supplier_number) {
-        showSnackbar('Please fill in all required fields', 'error');
+      // Validate required fields and numeric values
+      if (
+        !newSupplyData.supply_name ||
+        !newSupplyData.supply_description ||
+        newSupplyData.quantity_in_stock <= 0 ||
+        newSupplyData.reorder_level <= 0 ||
+        newSupplyData.cost_per_unit <= 0 ||
+        !newSupplyData.supplier_number
+      ) {
+        showSnackbar('Please fill in all required fields with valid data', 'error');
         return;
       }
   
-      // Perform insertion
-      const { data, error } = await supabase.from('supply').insert([{
-        supply_name: newSupplyData.supply_name,
-        supply_description: newSupplyData.supply_description,
-        quantity_in_stock: newSupplyData.quantity_in_stock,
-        reorder_level: newSupplyData.reorder_level,
-        cost_per_unit: newSupplyData.cost_per_unit,
-        supplier_number: newSupplyData.supplier_number,
-      }]);
+      // Additional validation for specific columns based on the database schema
+      const validColumns = [
+        'supply_name',
+        'supply_description',
+        'quantity_in_stock',
+        'reorder_level',
+        'cost_per_unit',
+        'supplier_number',
+        'drug_dosage',
+        'method_of_administration'
+      ];
+  
+      // Filter out any keys that are not in the validColumns array
+      const filteredData = Object.keys(newSupplyData)
+        .filter(key => validColumns.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = newSupplyData[key];
+          return obj;
+        }, {});
+  
+      // Insert the filteredData into the 'supply' table
+      const { data, error } = await supabase.from('supply').insert([filteredData]);
   
       if (error) {
         throw error;
@@ -209,7 +260,7 @@ const Supply = () => {
       console.log('Supply added successfully:', data);
       showSnackbar('Supply added successfully', 'success');
   
-      // Clear form data after successful insertion
+      // Reset the form fields after successful submission
       setNewSupplyData({
         supply_name: '',
         supply_description: '',
@@ -217,20 +268,16 @@ const Supply = () => {
         reorder_level: 0,
         cost_per_unit: 0,
         supplier_number: '',
+        drug_dosage: '',
+        method_of_administration: ''
       });
   
-      // Refresh item list (if needed)
-      fetchItems();
     } catch (error) {
       console.error('Error adding supply:', error.message);
       showSnackbar('Failed to add Supply', 'error');
     }
   };
   
-
-  const generateSupplyId = () => {
-    return `SUP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  };
 
   const generateReqNumber = async () => {
     try {
@@ -257,165 +304,183 @@ const Supply = () => {
     setSnackbarOpen(true);
   };
 
-  const toggleTableVisibility = () => {
-    setIsTableVisible(!isTableVisible);
-  };
-
   return (
+    <ThemeProvider theme={theme}>
     <div>
-      <Paper elevation={6}>
-        <div className="icon" style={{ display: 'flex' }}>
-          <div style={{ margin: '8px' }}>
-            <img src="../../img/supply.png" alt="Supply" />
+      <Box sx={{ p: 3 }}>
+        <Paper elevation={3}>
+          <div className="icon" style={{ display: 'flex' }}>
+            <div style={{ margin: '8px' }}>
+              <img src="../../img/supply.png" alt="Staff" />
+            </div>
           </div>
-          <div>
-            <h2 style={{ marginLeft: '10px' }}>Requisition</h2>
-          </div>
-        </div>
-      </Paper>
+        </Paper>
+
       <Box>
-        <div>
-          <ExpandableForm title="Add Supply">
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="supply_name"
-                  label="Supply Name"
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={newSupplyData.supply_name}
-                  onChange={handleNewSupplyInputChange}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="supply_description"
-                  label="Supply Description"
-                  variant="outlined"
-                  fullWidth
-                  select
-                  size="small"
-                  value={newSupplyData.supply_description}
-                  onChange={handleNewSupplyInputChange}
-                >
-                  <MenuItem value="Surgical">Surgical Supply</MenuItem>
-                  <MenuItem value="Non-Surgical">Non-Surgical Supply</MenuItem>
-                  <MenuItem value="Pharmaceutical">Pharmaceutical Supply</MenuItem>
-                </TextField>
-              </Grid>
-              {newSupplyData.supply_description === 'Pharmaceutical' && (
-                <>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      name="dosage"
-                      label="Dosage"
-                      variant="outlined"
-                      fullWidth
-                      size="small"
-                      value={newSupplyData.dosage}
-                      onChange={handleNewSupplyInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      name="method_of_administration"
-                      label="Method of Administration"
-                      variant="outlined"
-                      fullWidth
-                      size="small"
-                      value={newSupplyData.method_of_administration}
-                      onChange={handleNewSupplyInputChange}
-                    />
-                  </Grid>
-                </>
-              )}
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="quantity_in_stock"
-                  label="Quantity in Stock"
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={newSupplyData.quantity_in_stock}
-                  onChange={handleNewSupplyInputChange}
-                  type="number"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="reorder_level"
-                  label="Reorder Level"
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={newSupplyData.reorder_level}
-                  onChange={handleNewSupplyInputChange}
-                  type="number"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="cost_per_unit"
-                  label="Cost Per Unit"
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={newSupplyData.cost_per_unit}
-                  onChange={handleNewSupplyInputChange}
-                  type="number"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="supplier_number"
-                  label="Supplier Number"
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  value={newSupplyData.supplier_number}
-                  onChange={handleNewSupplyInputChange}
-                  select
-                >
-                  {suppliersList.map((supplier) => (
-                    <MenuItem key={supplier.supplier_number} value={supplier.supplier_number}>
-                      {supplier.supplier_name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12}>
-                <Box display="flex" justifyContent="center">
-                  <Button variant="contained" color="primary" onClick={handleSubmitNewSupply}>
-                    Add Supply
-                  </Button>
-                </Box>
-              </Grid>
+        <ExpandableForm title="Add Supply">
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="supply_name"
+                label="Supply Name"
+                variant="outlined"
+                fullWidth
+                size="small"
+                value={newSupplyData.supply_name}
+                onChange={handleNewSupplyInputChange}
+              />
             </Grid>
-          </ExpandableForm>
-          <ExpandableForm title="Create Requisition">
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="staff_number"
-                  label="Staff"
-                  variant="outlined"
-                  fullWidth
-                  select
-                  required
-                  size="small"
-                  value={formData.staff_number}
-                  onChange={handleInputChange}
-                >
-                  {staffList.map((staff) => (
-                    <MenuItem key={staff.staff_number} value={staff.staff_number}>
-                      {`${staff.first_name} ${staff.last_name}`}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="supply_description"
+                label="Supply Description"
+                variant="outlined"
+                fullWidth
+                select
+                size="small"
+                value={newSupplyData.supply_description}
+                onChange={handleNewSupplyInputChange}
+              >
+                <MenuItem value="Surgical">Surgical Supply</MenuItem>
+                <MenuItem value="Non-Surgical">Non-Surgical Supply</MenuItem>
+                <MenuItem value="Pharmaceutical">Pharmaceutical Supply</MenuItem>
+              </TextField>
+            </Grid>
+            {newSupplyData.supply_description === 'Pharmaceutical' && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="drug_dosage"
+                    label="Dosage"
+                    variant="outlined"
+                    fullWidth
+                    size="small"
+                    value={newSupplyData.drug_dosage}
+                    onChange={handleNewSupplyInputChange}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    name="method_of_administration"
+                    label="Method of Administration"
+                    variant="outlined"
+                    fullWidth
+                    size="small"
+                    value={newSupplyData.method_of_administration}
+                    onChange={handleNewSupplyInputChange}
+                  />
+                </Grid>
+              </>
+            )}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="quantity_in_stock"
+                label="Quantity in Stock"
+                variant="outlined"
+                fullWidth
+                size="small"
+                type="number"
+                value={newSupplyData.quantity_in_stock}
+                onChange={handleNewSupplyInputChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="reorder_level"
+                label="Reorder Level"
+                variant="outlined"
+                fullWidth
+                size="small"
+                type="number"
+                value={newSupplyData.reorder_level}
+                onChange={handleNewSupplyInputChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="cost_per_unit"
+                label="Cost per Unit"
+                variant="outlined"
+                fullWidth
+                size="small"
+                type="number"
+                value={newSupplyData.cost_per_unit}
+                onChange={handleNewSupplyInputChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="supplier_number"
+                label="Supplier"
+                variant="outlined"
+                fullWidth
+                size="small"
+                select
+                value={newSupplyData.supplier_number}
+                onChange={handleNewSupplyInputChange}
+              >
+                {suppliersList.map((supplier) => (
+                  <MenuItem key={supplier.supplier_number} value={supplier.supplier_number}>
+                    {supplier.supplier_name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+          <Box Box display="flex" justifyContent="center" style={{ marginTop: '10px' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSubmitNewSupply}
+            >
+              Add Supply
+            </Button>
+          </Box>
+        </ExpandableForm>
+
+        <ExpandableForm title="Create Requisition">
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Select Ward"
+                name="ward_number"
+                value={formData.ward_number}
+                onChange={handleInputChange}
+                variant="outlined"
+                required
+                margin="normal"
+              >
+                {wardList.map((ward) => (
+                  <MenuItem key={ward.ward_number} value={ward.ward_number}>
+                    {ward.ward_name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Select Staff"
+                name="staff_number"
+                value={formData.staff_number}
+                onChange={handleInputChange}
+                variant="outlined"
+                required
+                margin="normal"
+                disabled={!formData.ward_number}
+              >
+                {staffAssignedToWardList.map((staff) => (
+                  <MenuItem key={staff.staff_number} value={staff.staff_number}>
+                    {staff.first_name} {staff.last_name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+            <TextField
                   name="item_id"
                   label="Item"
                   variant="outlined"
@@ -431,111 +496,106 @@ const Supply = () => {
                       {item.supply_name}
                     </MenuItem>
                   ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="ward_number"
-                  label="Ward"
-                  variant="outlined"
-                  fullWidth
-                  select
-                  required
-                  size="small"
-                  value={formData.ward_number}
-                  onChange={handleInputChange}
-                >
-                  {wardList.map((ward) => (
-                    <MenuItem key={ward.ward_number} value={ward.ward_number}>
-                      {`${ward.ward_name}`}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={2}>
-                <TextField
-                  name="quantity_ordered"
-                  label="Quantity Ordered"
-                  type="number"
-                  variant="outlined"
-                  fullWidth
-                  required
-                  size="small"
-                  value={formData.quantity_ordered}
-                  onChange={handleInputChange}
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  name="date_ordered"
-                  label="Date Ordered"
-                  type="date"
-                  variant="outlined"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  size="small"
-                  value={formData.date_ordered}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <Box display="flex" justifyContent="center">
-                  <Button variant="contained" color="primary" onClick={handleSubmitRequisition}>
-                    Submit
-                  </Button>
-                </Box>
-              </Grid>
+          </TextField>
             </Grid>
-          </ExpandableForm>
-          <Box display="flex" justifyContent="center" style={{ marginTop: '10px' }}>
-            <Button variant="contained" color="primary" onClick={toggleTableVisibility}>
-              {isTableVisible ? 'Hide Requisition Table' : 'Show Requisition Table'}
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="quantity_ordered"
+                label="Quantity Ordered"
+                variant="outlined"
+                fullWidth
+                size="small"
+                type="number"
+                value={formData.quantity_ordered}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="date_ordered"
+                label="Date Ordered"
+                variant="outlined"
+                fullWidth
+                size="small"
+                type="date"
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                value={formData.date_ordered}
+                onChange={handleInputChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+            <Box display="flex" justifyContent="center" style={{ marginTop: '10px' }}>
+            <Button variant="contained" color="primary" onClick={handleSubmitRequisition}>
+              Submit
             </Button>
           </Box>
-
-          {isTableVisible && (
-            <TableContainer component={Paper} style={{ maxHeight: '300px', marginTop: '20px' }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Requisition Number</TableCell>
-                    <TableCell>Staff Number</TableCell>
-                    <TableCell>Ward Number</TableCell>
-                    <TableCell>Date Ordered</TableCell>
-                    <TableCell>Item</TableCell>
-                    <TableCell>Quantity Ordered</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {wardRequisitionList.map((wardRequisition) => {
-                    const requisitionSupplies = requisitionSupplyList.filter(
-                      (supply) => supply.req_number === wardRequisition.req_number
-                    );
-                    return requisitionSupplies.map((requisitionSupply, index) => (
-                      <TableRow key={`${wardRequisition.req_number}-${index}`}>
-                        <TableCell>{wardRequisition.req_number}</TableCell>
-                        <TableCell>{wardRequisition.staff_number}</TableCell>
-                        <TableCell>{wardRequisition.ward_number}</TableCell>
-                        <TableCell>{wardRequisition.date_ordered}</TableCell>
-                        <TableCell>{requisitionSupply.supply_id}</TableCell>
-                        <TableCell>{requisitionSupply.quantity_ordered}</TableCell>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Box display="flex" justifyContent="center" style={{ marginTop: '10px' }}>
+                <Button variant="contained" color="primary" onClick={toggleTableVisibility}>
+                  {isTableVisible ? 'Hide Requisition Table' : 'Show Requisition Table'}
+                </Button>
+              </Box>
+            </Grid>
+            {isTableVisible && (
+              <Grid item xs={12}>
+                <TableContainer component={Paper} style={{ maxHeight: '300px', marginTop: '20px' }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Requisition Number</TableCell>
+                        <TableCell>Staff Number</TableCell>
+                        <TableCell>Ward Number</TableCell>
+                        <TableCell>Date Ordered</TableCell>
+                        <TableCell>Item</TableCell>
+                        <TableCell>Quantity Ordered</TableCell>
                       </TableRow>
-                    ));
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </div>
+                    </TableHead>
+                    <TableBody>
+                      {wardRequisitionList.map((wardRequisition) => {
+                        const requisitionSupplies = requisitionSupplyList.filter(
+                          (supply) => supply.req_number === wardRequisition.req_number
+                        );
+                        return requisitionSupplies.map((requisitionSupply, index) => (
+                          <TableRow key={`${wardRequisition.req_number}-${index}`}>
+                            <TableCell>{wardRequisition.req_number}</TableCell>
+                            <TableCell>{wardRequisition.staff_number}</TableCell>
+                            <TableCell>{wardRequisition.ward_number}</TableCell>
+                            <TableCell>{wardRequisition.date_ordered}</TableCell>
+                            <TableCell>{requisitionSupply.supply_id}</TableCell>
+                            <TableCell>{requisitionSupply.quantity_ordered}</TableCell>
+                          </TableRow>
+                        ));
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            )}
+          </Grid>
+          
+        </ExpandableForm>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
+          onClose={handleSnackbarClose}
+        >
+          <Alert
+            onClose={handleSnackbarClose}
+            severity={snackbarSeverity}
+            sx={{ width: '100%' }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
       </Box>
-
-      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
-        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      </Box>
     </div>
+    </ThemeProvider>
   );
 };
 

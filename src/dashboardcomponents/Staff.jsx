@@ -3,6 +3,18 @@ import { Box, Paper, Button, Grid, MenuItem, Select, InputLabel, FormControl, Te
 import ExpandableForm from './ExpandableForm';
 import { supabase } from '../supabaseClient';
 import StaffListPopup from './StaffListPopup';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#0b61b8',
+    },
+    secondary: {
+      main: '#8B0000',
+    }
+  },
+});
 
 const Staff = () => {
   const [positions, setPositions] = useState([]);
@@ -24,7 +36,7 @@ const Staff = () => {
         if (error) {
           throw error;
         }
-        
+
         setPositions(positionsData || []);
       } catch (error) {
         console.error('Error fetching positions:', error.message);
@@ -71,9 +83,9 @@ const Staff = () => {
 
   const handleSubmitStaffInfo = async (event) => {
     event.preventDefault();
-    
+
     if (!validateForm()) return;
-  
+
     try {
       const { data, error } = await supabase
         .from('staff')
@@ -89,13 +101,13 @@ const Staff = () => {
             position_id: staffInfo.position
           }
         ]);
-  
+
       if (error) {
         throw error;
       }
-  
+
       console.log('Submitted Staff Info:', data); // Log response from Supabase
-  
+
       // Clear the form fields after successful submission
       setStaffInfo({
         firstName: '',
@@ -107,14 +119,14 @@ const Staff = () => {
         dateOfBirth: '',
         position: ''
       });
-  
+
       setSuccessMessage('Staff added successfully');
       setErrorMessage('');
-  
+
       setSnackbarSeverity('success');
       setSnackbarMessage('Staff added successfully');
       setOpenSnackbar(true);
-  
+
     } catch (error) {
       console.error('Error inserting staff info:', error.message);
       setErrorMessage('Failed to add staff. Please try again later.');
@@ -125,7 +137,7 @@ const Staff = () => {
       setOpenSnackbar(true);
     }
   };
-  
+
   const [workExperience, setWorkExperience] = useState({
     selectStaff: '',
     positionName: '',
@@ -167,7 +179,7 @@ const Staff = () => {
         positionName: '',
         startDate: '',
         finishDate: '',
-        organization:''
+        organization: ''
       });
 
       setSnackbarSeverity('success');
@@ -273,7 +285,7 @@ const Staff = () => {
         selectStaff: '',
         hoursWorkedPerWeek: '',
         contractType: '',
-        salaryPaymentType:''
+        salaryPaymentType: ''
       });
 
       setSnackbarSeverity('success');
@@ -310,6 +322,7 @@ const Staff = () => {
   };
 
   return (
+    <ThemeProvider theme={theme}>
     <div>
       <Box sx={{ p: 3 }}>
         <Paper elevation={3}>
@@ -429,11 +442,16 @@ const Staff = () => {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} style={{ marginTop: '10px' }}>
-                  <Button variant="contained" color="primary" type="submit">
-                    Submit
-                  </Button>
+                <Grid container justify="center" alignItems="center" style={{ marginTop: '10px' }}>
+                  <Grid item xs={12} sm={12}>
+                    <Box sx={{ mt: 1, textAlign: 'center' }}>
+                      <Button variant="contained" color="primary" type="submit">
+                        Add Staff
+                      </Button>
+                    </Box>
+                  </Grid>
                 </Grid>
+
               </Grid>
             </ExpandableForm>
           </div>
@@ -514,10 +532,14 @@ const Staff = () => {
                     onChange={handleWorkExperienceChange}
                   />
                 </Grid>
-                <Grid item xs={12} style={{ marginTop: '10px' }}>
+                <Grid container justify="center" alignItems="center" style={{ marginTop: '10px' }}>
+                  <Grid item xs={12} sm={12}>
+                    <Box sx={{ mt: 1, textAlign: 'center' }}>
                   <Button variant="contained" color="primary" type="submit">
-                    Submit
+                    Add Work Experience
                   </Button>
+                  </Box>
+                  </Grid>
                 </Grid>
               </Grid>
             </ExpandableForm>
@@ -583,10 +605,14 @@ const Staff = () => {
                     }}
                   />
                 </Grid>
-                <Grid item xs={12} style={{ marginTop: '10px' }}>
+                <Grid container justify="center" alignItems="center" style={{ marginTop: '10px' }}>
+                  <Grid item xs={12} sm={12}>
+                    <Box sx={{ mt: 1, textAlign: 'center' }}>
                   <Button variant="contained" color="primary" type="submit">
-                    Submit
+                    Add Qualications
                   </Button>
+                  </Box>
+                  </Grid>
                 </Grid>
               </Grid>
             </ExpandableForm>
@@ -648,16 +674,20 @@ const Staff = () => {
                     onChange={handleEmploymentContractChange}
                   />
                 </Grid>
-                <Grid item xs={12} style={{ marginTop: '10px' }}>
+                <Grid container justify="center" alignItems="center" style={{ marginTop: '10px' }}>
+                  <Grid item xs={12} sm={12}>
+                    <Box sx={{ mt: 1, textAlign: 'center' }}>
                   <Button variant="contained" color="primary" type="submit">
-                    Submit
+                    Add Contract
                   </Button>
+                  </Box>
+                  </Grid>
                 </Grid>
               </Grid>
             </ExpandableForm>
           </div>
 
-          <Button style={{marginTop:'10px'}} variant="contained" color="primary" onClick={handleOpenPopup}>
+          <Button style={{ marginTop: '20px' }} variant="contained" color="primary" onClick={handleOpenPopup}>
             Open Staff List Popup
           </Button>
 
@@ -679,6 +709,7 @@ const Staff = () => {
         </Box>
       </Box>
     </div>
+    </ThemeProvider>
   );
 };
 

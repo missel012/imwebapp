@@ -40,11 +40,13 @@ const Sidebar = () => {
   return (
     <div className="sidebar">
       <div className="logo">
-        <img src={logo} alt="Wellmeadows Hospital Logo" />
+        <Link to="/dashboard/welcome">
+          <img src={logo} alt="Wellmeadows Hospital Logo" />
+        </Link>
       </div>
       <ul>
         <li style={{ fontSize: '5mm' }}>
-          <Link to="/dashboard">
+        <Link to="/dashboard/welcome">
             <HomeIcon style={{ fontSize: 20, marginRight: 5 }} />
             Dashboard
           </Link>

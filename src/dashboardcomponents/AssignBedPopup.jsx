@@ -227,6 +227,19 @@ const AssignBedPopup = ({ open, onClose, onAssign }) => {
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Assign Bed</DialogTitle>
       <DialogContent>
+      <TextField
+          label="Waiting List ID"
+          select
+          fullWidth
+          value={selectedWaitingListId}
+          onChange={(e) => setSelectedWaitingListId(e.target.value)}
+        >
+          {waitingList.map((item) => (
+            <MenuItem key={item.list_id} value={item.list_id}>
+              {item.list_id}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
           label="Ward Number"
           select
@@ -289,20 +302,6 @@ const AssignBedPopup = ({ open, onClose, onAssign }) => {
             shrink: true,
           }}
         />
-
-        <TextField
-          label="Waiting List ID"
-          select
-          fullWidth
-          value={selectedWaitingListId}
-          onChange={(e) => setSelectedWaitingListId(e.target.value)}
-        >
-          {waitingList.map((item) => (
-            <MenuItem key={item.list_id} value={item.list_id}>
-              {item.list_id}
-            </MenuItem>
-          ))}
-        </TextField>
 
       </DialogContent>
       <DialogActions>

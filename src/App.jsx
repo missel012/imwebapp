@@ -22,7 +22,6 @@ function App() {
           <Route path="/" element={<PublicRoute><NewLogin /></PublicRoute>} />
           <Route path="/login" element={<PublicRoute><NewLogin /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-          <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>}>
             <Route path="patient" element={<Patient />} />
             <Route path="staff" element={<Staff />} />
@@ -30,6 +29,7 @@ function App() {
             <Route path="supply" element={<Supply />} />
             <Route path="prescription" element={<Prescription />} />
             <Route path="other" element={<Other />} />
+            <Route path="welcome" element={<WelcomePage />} />
           </Route>
         </Routes>
       </Router>

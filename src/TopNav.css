@@ -1,23 +1,23 @@
 .top-nav {
   position: fixed;
   top: 0;
-  left: 300px; /* Adjust left position to match Sidebar width */
+  left: 250px; /* Adjust left position to match Sidebar width */
   right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #fff;
+  background-color: #0b61b8;
   height: 60px;
   padding: 0 20px; /* Adjust padding as needed */
-  z-index: 900; /* Ensure it's below the Sidebar */
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .hospital-name {
   font-size: 1.3rem;
+  margin-left: 50px;
   font-weight: bold;
-  color: #636363; /* Change as needed */
+  color: #ffffff; /* Change as needed */
   margin-right: 100px; /* Adjust spacing as needed */
 }
 
@@ -44,7 +44,7 @@
 
 .profile-name {
   font-size: 16px;
-  color: #333;
+  color: #ffffff;
 }
 
 .profile-name:hover {
