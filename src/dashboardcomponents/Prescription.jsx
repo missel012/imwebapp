@@ -264,6 +264,12 @@ const Prescription = () => {
     const drug = drugs.find(drug => drug.drug_number === drugId);
     return drug ? drug.supply_name : '';
   };
+
+  const getDrugNumberByName = (drugName) => {
+    const foundDrug = drugs.find((drug) => drug.supply_name === drugName);
+    return foundDrug ? foundDrug.drug_number : null;
+  };
+
   
   if (loading) {
     return (
