@@ -11,7 +11,7 @@
   justify-content: space-between; /* Ensure space between logo and logout button */
   padding: 20px;
   overflow-y: hidden; /* Change to hidden to remove the scrollbar */
-  z-index: 2; /* Ensure sidebar is above content */
+  z-index: 11; /* Ensure sidebar is above content */
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); 
 }
 
